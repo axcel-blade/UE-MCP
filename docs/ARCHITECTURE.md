@@ -2,7 +2,7 @@
 
 ## Overview
 
-UnrealEngineMCP connects MCP clients to a running Unreal Editor through three layers:
+Unreal Engine MCP connects MCP clients to a running Unreal Editor through three layers:
 
 1. **Python MCP server** (`mcp_server/`) — FastMCP over STDIO, validation, security, orchestration
 2. **Communication bridge** — length-prefixed JSON over localhost TCP (default `127.0.0.1:55557`)

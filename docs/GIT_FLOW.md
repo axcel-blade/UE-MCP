@@ -1,6 +1,6 @@
 # Git Flow
 
-UnrealEngineMCP uses classic Git Flow.
+Unreal Engine MCP uses classic Git Flow.
 
 ```text
 main ─────●────────────●────────────●─────  production tags (vX.Y.Z)

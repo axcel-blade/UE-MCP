@@ -5,7 +5,7 @@ Branch: `feature/unreal-engine-mcp-foundation`
 
 ## Summary
 
-UnrealEngineMCP is being built as a Blender-MCP-style three-layer system:
+Unreal Engine MCP is being built as a Blender-MCP-style three-layer system:
 
 1. Python FastMCP server (`mcp_server/`) over STDIO  
 2. Length-prefixed JSON TCP bridge  

@@ -1,4 +1,4 @@
-# UnrealEngineMCP
+# Unreal Engine MCP
 
 [![CI](https://github.com/axcel-blade/UE-MCP/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/axcel-blade/UE-MCP/actions/workflows/ci.yml)
 [![CD](https://github.com/axcel-blade/UE-MCP/actions/workflows/cd.yml/badge.svg)](https://github.com/axcel-blade/UE-MCP/actions/workflows/cd.yml)
@@ -58,7 +58,7 @@ uv sync
 uv run python scripts/install_plugin.py --project "D:\Path\To\YourProject.uproject"
 ```
 
-1. Open the Unreal project → enable **UnrealEngineMCP** (+ Editor Scripting Utilities) → compile / restart
+1. Open the Unreal project → enable **Unreal Engine MCP** (+ Editor Scripting Utilities) → compile / restart
 2. Confirm Output Log: bridge listening on `127.0.0.1:55557`
 3. Point your MCP client at:
 
@@ -121,7 +121,7 @@ More client samples: [config/mcp_clients/](config/mcp_clients/). Full install gu
 ## Architecture
 
 ```text
-AI Client --stdio MCP--> unreal-engine-mcp --TCP length-prefixed JSON--> UnrealEngineMCP plugin --Editor APIs--> Unreal Engine
+AI Client --stdio MCP--> unreal-engine-mcp --TCP length-prefixed JSON--> Unreal Engine MCP plugin --Editor APIs--> Unreal Engine
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

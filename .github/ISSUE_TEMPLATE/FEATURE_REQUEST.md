@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an enhancement for UnrealEngineMCP
+about: Suggest an enhancement for Unreal Engine MCP
 title: "[FEATURE] "
 labels: enhancement
 assignees: ""

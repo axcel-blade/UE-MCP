@@ -9,7 +9,7 @@ uv run pytest
 
 ## Plugin
 
-Compile UnrealEngineMCP with an Unreal project. Automation smoke tests can be added under `Private/Tests/`.
+Compile Unreal Engine MCP with an Unreal project. Automation smoke tests can be added under `Private/Tests/`.
 
 ## Integration
 
