@@ -44,7 +44,7 @@ Work on `feature/*`, `release/*`, and `hotfix/*`, then open a PR into `develop` 
 ## CI triggers
 
 - **CI** runs on pushes to `main`, `develop`, `feature/**`, `release/**`, `hotfix/**` and on PRs into `main` / `develop`
-- **Pages** deploys the Astro install site from `develop` / `main` when `site/**` changes
+- **Pages** builds the Astro install site on `develop` / `main` when `site/**` changes; deploys to GitHub Pages from `main` only
 - **Release** is manually dispatched (preferred from `main`)
 - **CD** runs on `v*` tags (or via Release dispatch)
 
