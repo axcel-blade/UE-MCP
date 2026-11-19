@@ -27,6 +27,8 @@ C++ Unreal Engine 5 Editor plugin that hosts the localhost TCP bridge and execut
 
 Copy into `<Project>/Plugins/UnrealEngineMCP`, regenerate project files, compile Editor target. Requires **Editor Scripting Utilities**.
 
+The descriptor omits `EngineVersion` so UE 5.4+ does not show an incompatible-plugin dialog; rebuild the plugin for each Editor version you use.
+
 From the repo root (preferred):
 
 ```powershell

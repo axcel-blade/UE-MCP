@@ -7,11 +7,13 @@
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/PlatformProcess.h"
+#include "Async/Async.h"
 
 FUnrealEngineMCPTCPServerRunnable::FUnrealEngineMCPTCPServerRunnable(FUnrealEngineMCPBridgeServer* InOwner, TSharedPtr<FSocket> InListener)
 	: Owner(InOwner)
 	, ListenerSocket(InListener)
 	, bStopping(false)
+	, ActiveClients(0)
 {
 }
 
@@ -32,8 +34,17 @@ uint32 FUnrealEngineMCPTCPServerRunnable::Run()
 			TSharedPtr<FSocket> Client = MakeShareable(ListenerSocket->Accept(TEXT("UnrealEngineMCPClient")));
 			if (Client.IsValid())
 			{
+				// Blocking I/O so ReadExact/SendAll wait for the peer instead of
+				// treating "no data yet" as a disconnect between requests.
+				Client->SetNonBlocking(false);
 				Client->SetNoDelay(true);
-				HandleClient(Client);
+
+				++ActiveClients;
+				Async(EAsyncExecution::Thread, [this, Client]()
+				{
+					HandleClient(Client);
+					--ActiveClients;
+				});
 			}
 		}
 		else
@@ -49,11 +60,26 @@ void FUnrealEngineMCPTCPServerRunnable::Stop()
 	bStopping = true;
 }
 
-bool FUnrealEngineMCPTCPServerRunnable::ReadExact(FSocket* Socket, uint8* Buffer, int32 Length)
+void FUnrealEngineMCPTCPServerRunnable::WaitForClients()
+{
+	const double Start = FPlatformTime::Seconds();
+	while (ActiveClients.Load(EMemoryOrder::SequentiallyConsistent) > 0 && (FPlatformTime::Seconds() - Start) < 5.0)
+	{
+		FPlatformProcess::Sleep(0.01f);
+	}
+}
+
+bool FUnrealEngineMCPTCPServerRunnable::ReadExact(FSocket* Socket, uint8* Buffer, int32 Length) const
 {
 	int32 Total = 0;
 	while (Total < Length && !bStopping)
 	{
+		// Wait up to 100ms for readability so idle persistent connections stay open.
+		if (!Socket->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromMilliseconds(100)))
+		{
+			continue;
+		}
+
 		int32 Read = 0;
 		if (!Socket->Recv(Buffer + Total, Length - Total, Read) || Read <= 0)
 		{
@@ -64,19 +90,19 @@ bool FUnrealEngineMCPTCPServerRunnable::ReadExact(FSocket* Socket, uint8* Buffer
 	return Total == Length;
 }
 
-bool FUnrealEngineMCPTCPServerRunnable::SendAll(FSocket* Socket, const TArray<uint8>& Data)
+bool FUnrealEngineMCPTCPServerRunnable::SendAll(FSocket* Socket, const TArray<uint8>& Data) const
 {
 	int32 SentTotal = 0;
-	while (SentTotal < Data.Num())
+	while (SentTotal < Data.Num() && !bStopping)
 	{
 		int32 Sent = 0;
-		if (!Socket->Send(Data.GetData() + SentTotal, Data.Num() - SentTotal, Sent))
+		if (!Socket->Send(Data.GetData() + SentTotal, Data.Num() - SentTotal, Sent) || Sent <= 0)
 		{
 			return false;
 		}
 		SentTotal += Sent;
 	}
-	return true;
+	return SentTotal == Data.Num();
 }
 
 void FUnrealEngineMCPTCPServerRunnable::HandleClient(TSharedPtr<FSocket> ClientSocket)
@@ -174,7 +200,7 @@ bool FUnrealEngineMCPBridgeServer::Start(const FString& InHost, int32 InPort)
 
 	ListenerSocket->SetReuseAddr(true);
 	ListenerSocket->SetNonBlocking(true);
-	if (!ListenerSocket->Bind(*Addr) || !ListenerSocket->Listen(8))
+	if (!ListenerSocket->Bind(*Addr) || !ListenerSocket->Listen(16))
 	{
 		ListenerSocket->Close();
 		ListenerSocket.Reset();
@@ -193,6 +219,15 @@ void FUnrealEngineMCPBridgeServer::Stop()
 	{
 		Runnable->Stop();
 	}
+	if (ListenerSocket.IsValid())
+	{
+		ListenerSocket->Close();
+		ListenerSocket.Reset();
+	}
+	if (Runnable)
+	{
+		Runnable->WaitForClients();
+	}
 	if (Thread)
 	{
 		Thread->WaitForCompletion();
@@ -203,11 +238,6 @@ void FUnrealEngineMCPBridgeServer::Stop()
 	{
 		delete Runnable;
 		Runnable = nullptr;
-	}
-	if (ListenerSocket.IsValid())
-	{
-		ListenerSocket->Close();
-		ListenerSocket.Reset();
 	}
 	bRunning = false;
 }

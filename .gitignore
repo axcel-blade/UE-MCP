@@ -9,6 +9,7 @@ venv/
 .mypy_cache/
 dist/
 build/
+Build/
 *.egg
 
 # Unreal
