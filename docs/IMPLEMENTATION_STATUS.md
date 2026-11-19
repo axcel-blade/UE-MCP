@@ -19,7 +19,7 @@ Unreal Engine MCP is being built as a Blender-MCP-style three-layer system:
 | Branch protection (`main`, `develop`) | Enabled on GitHub |
 | GitHub community markdown (uppercase) | Added |
 | CI / CD / Release workflows | Added (`.github/workflows/`) |
-| Pages workflow + Astro site (`site/`) | Added; deploys after merge to `develop`/`main` |
+| Pages workflow + Astro site (`site/`) | Added; builds on `develop`/`main`, deploys from `main` |
 | Remote / local installers (`site/public`, `installers/`) | Added (UTF-8 no BOM for PowerShell) |
 | GitHub About website | `https://axcel-blade.github.io/UE-MCP/` |
 

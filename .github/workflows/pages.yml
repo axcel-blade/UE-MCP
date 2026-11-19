@@ -20,12 +20,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: Build Astro & Deploy
+  build:
+    name: Build Astro
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     defaults:
       run:
         working-directory: site
@@ -52,13 +49,23 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: site/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    # github-pages env deployment branch policy allows main only (not develop).
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
       - name: Deploy to GitHub Pages
         id: deployment
