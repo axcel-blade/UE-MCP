@@ -1,0 +1,200 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semver without v prefix (e.g. 0.1.1)"
+        required: true
+        type: string
+      branch:
+        description: "Branch to release from (Git Flow: main)"
+        required: true
+        default: main
+        type: string
+      prerelease:
+        description: "Mark GitHub Release as prerelease"
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: "Prepare locally in CI without pushing tag/commit"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Validate version
+        id: meta
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid semver: $VERSION" >&2
+            exit 1
+          fi
+          TAG="v${VERSION}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag already exists: $TAG" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Bump version files
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          python - <<'PY'
+          import pathlib, re, os
+          version = os.environ["VERSION"]
+          pyproject = pathlib.Path("pyproject.toml")
+          text = pyproject.read_text(encoding="utf-8")
+          text, n = re.subn(
+              r'(?m)^version = "[^"]+"',
+              f'version = "{version}"',
+              text,
+              count=1,
+          )
+          if n != 1:
+              raise SystemExit("Failed to bump version in pyproject.toml")
+          pyproject.write_text(text, encoding="utf-8")
+
+          init = pathlib.Path("mcp_server/__init__.py")
+          init_text = init.read_text(encoding="utf-8")
+          init_text, n = re.subn(
+              r'__version__ = "[^"]+"',
+              f'__version__ = "{version}"',
+              init_text,
+              count=1,
+          )
+          if n != 1:
+              raise SystemExit("Failed to bump __version__")
+          init.write_text(init_text, encoding="utf-8")
+
+          uplugin = pathlib.Path("UnrealEngineMCP/UnrealEngineMCP.uplugin")
+          uplugin_text = uplugin.read_text(encoding="utf-8")
+          uplugin_text, n = re.subn(
+              r'"VersionName": "[^"]+"',
+              f'"VersionName": "{version}"',
+              uplugin_text,
+              count=1,
+          )
+          if n != 1:
+              raise SystemExit("Failed to bump VersionName in uplugin")
+          uplugin.write_text(uplugin_text, encoding="utf-8")
+          print(f"Bumped to {version}")
+          PY
+
+      - name: Update CHANGELOG.md
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          python - <<'PY'
+          import pathlib, datetime, os, re
+          version = os.environ["VERSION"]
+          path = pathlib.Path("CHANGELOG.md")
+          text = path.read_text(encoding="utf-8")
+          today = datetime.date.today().isoformat()
+          header = f"## [{version}] - {today}"
+          if re.search(rf"^## \[{re.escape(version)}\]", text, flags=re.M):
+              print("CHANGELOG already has this version; leaving as-is")
+          else:
+              replacement = (
+                  f"## [Unreleased]\n\n"
+                  f"### Added\n\n"
+                  f"- \n\n"
+                  f"### Changed\n\n"
+                  f"- \n\n"
+                  f"### Fixed\n\n"
+                  f"- \n\n"
+                  f"{header}\n"
+              )
+              text, n = re.subn(
+                  r"## \[Unreleased\]\s*",
+                  replacement,
+                  text,
+                  count=1,
+              )
+              if n != 1:
+                  raise SystemExit("Could not update CHANGELOG.md Unreleased section")
+              path.write_text(text, encoding="utf-8")
+              print(f"CHANGELOG: moved Unreleased under {header}")
+          PY
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync and verify
+        run: |
+          uv sync
+          uv run pytest -q
+          uv run python -c "from mcp_server import __version__; assert __version__ == '${{ steps.meta.outputs.version }}'"
+
+      - name: Commit version bump
+        if: ${{ inputs.dry_run == false }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml mcp_server/__init__.py UnrealEngineMCP/UnrealEngineMCP.uplugin CHANGELOG.md uv.lock || true
+          git diff --staged --quiet && echo "No version file changes to commit" && exit 0
+          git commit -m "chore(release): ${{ steps.meta.outputs.tag }}"
+          git push origin "HEAD:${{ inputs.branch }}"
+
+      - name: Create and push tag
+        if: ${{ inputs.dry_run == false }}
+        run: |
+          git tag -a "${{ steps.meta.outputs.tag }}" -m "Release ${{ steps.meta.outputs.tag }}"
+          git push origin "${{ steps.meta.outputs.tag }}"
+
+      - name: Create GitHub Release
+        if: ${{ inputs.dry_run == false }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.tag }}
+          generate_release_notes: true
+          prerelease: ${{ inputs.prerelease }}
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    name: Trigger CD
+    needs: prepare
+    if: ${{ inputs.dry_run == false }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch CD workflow
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          # Tag pushes made with GITHUB_TOKEN do not start new workflows.
+          # Explicitly dispatch CD against the release tag.
+          gh workflow run cd.yml \
+            --repo "${{ github.repository }}" \
+            -f tag="${{ needs.prepare.outputs.tag }}"
+          echo "Dispatched CD for ${{ needs.prepare.outputs.tag }}"

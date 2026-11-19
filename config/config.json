@@ -1,0 +1,27 @@
+{
+  "server": {
+    "name": "UnrealEngineMCP",
+    "transport": "stdio",
+    "log_level": "INFO"
+  },
+  "unreal": {
+    "host": "127.0.0.1",
+    "port": 55557,
+    "auto_connect": true,
+    "connection_timeout": 10,
+    "request_timeout": 60,
+    "auth_token": ""
+  },
+  "security": {
+    "mode": "safe",
+    "require_confirmation_for_destructive_actions": true,
+    "allow_python_execution": false,
+    "allow_console_commands": false
+  },
+  "paths": {
+    "project_directory": "",
+    "screenshot_directory": "output/screenshots",
+    "log_directory": "logs",
+    "allowed_directories": []
+  }
+}

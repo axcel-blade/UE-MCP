@@ -1,0 +1,12 @@
+services:
+  site:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ASTRO_SITE: http://localhost:8080
+        ASTRO_BASE: /
+    image: unreal-engine-mcp-site:local
+    ports:
+      - "8080:80"
+    restart: unless-stopped

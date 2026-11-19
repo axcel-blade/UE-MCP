@@ -1,0 +1,90 @@
+---
+import Layout from "../layouts/Layout.astro";
+import "../styles/home.css";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const installPs1 = `${base}/install.ps1`;
+const installSh = `${base}/install.sh`;
+
+const winCmd = `irm https://axcel-blade.github.io/UE-MCP/install.ps1 | iex`;
+const unixCmd = `curl -LsSf https://axcel-blade.github.io/UE-MCP/install.sh | sh`;
+---
+
+<Layout>
+  <main class="page">
+    <p class="eyebrow">Unreal Engine · MCP</p>
+    <h1>UnrealEngineMCP</h1>
+    <p class="lede">
+      Connect Claude, Cursor, VS Code, and other MCP clients to Unreal Engine 5.
+      One command installs uv, clones the repo, and syncs dependencies. Then
+      install the Editor plugin into your <code>.uproject</code>.
+    </p>
+
+    <section class="panel">
+      <h2>Windows (PowerShell)</h2>
+      <div class="command">
+        <pre><code>{winCmd}</code></pre>
+        <button class="copy" type="button" data-copy={winCmd}>Copy</button>
+      </div>
+      <p style="margin: 0.75rem 0 0; color: var(--muted); font-size: 0.95rem;">
+        Script URL: <a href={installPs1}>{installPs1}</a>
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>macOS / Linux</h2>
+      <div class="command">
+        <pre><code>{unixCmd}</code></pre>
+        <button class="copy" type="button" data-copy={unixCmd}>Copy</button>
+      </div>
+      <p style="margin: 0.75rem 0 0; color: var(--muted); font-size: 0.95rem;">
+        Script URL: <a href={installSh}>{installSh}</a>
+      </p>
+      <p style="margin: 0.5rem 0 0; color: var(--muted); font-size: 0.9rem;">
+        Editor plugin compile is Windows-primary; Unix installs the Python MCP server.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>After install</h2>
+      <ol class="steps">
+        <li>
+          From the clone:
+          <code>uv run python scripts/install_plugin.py --project "D:\Path\To\YourProject.uproject"</code>
+        </li>
+        <li>
+          Open the Unreal project → enable <strong>UnrealEngineMCP</strong> (+ Editor
+          Scripting Utilities) → compile / restart
+        </li>
+        <li>Confirm Output Log: bridge listening on <code>127.0.0.1:55557</code></li>
+        <li>Fully quit and reopen your MCP client</li>
+      </ol>
+    </section>
+
+    <nav class="links">
+      <a href="https://github.com/axcel-blade/UE-MCP">GitHub</a>
+      <a
+        href="https://github.com/axcel-blade/UE-MCP/blob/develop/docs/INSTALLATION.md"
+        >Docs</a
+      >
+      <a href="https://github.com/axcel-blade/UE-MCP/blob/develop/SECURITY.md"
+        >Security</a
+      >
+    </nav>
+  </main>
+</Layout>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>("button.copy").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const value = button.dataset.copy ?? "";
+      await navigator.clipboard.writeText(value);
+      button.dataset.copied = "true";
+      button.textContent = "Copied";
+      window.setTimeout(() => {
+        button.dataset.copied = "false";
+        button.textContent = "Copy";
+      }, 1600);
+    });
+  });
+</script>
