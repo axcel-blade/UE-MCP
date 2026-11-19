@@ -9,25 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Astro GitHub Pages install site (`site/`) with UTF-8 remote installers (`install.ps1` / `install.sh`)
-- Local OS installers under `installers/windows|macos|linux`
-- Pages workflow (`.github/workflows/pages.yml`) and CD job to refresh Pages on release
-- Repository website link: https://axcel-blade.github.io/UE-MCP/
-- Branch protection on `main` and `develop` (PR + review + conversation resolution)
+-
 
 ### Changed
 
-- Installation / Getting Started / Development docs aligned with Pages one-liners and Git Flow protection
+-
 
 ### Fixed
 
 -
 
-## [0.1.0] - 2026-11-19
+## [1.0.0] - 2026-11-19
 
 ### Added
 
-- Initial UnrealEngineMCP foundation: Python FastMCP server (uv), length-prefixed TCP bridge, C++ Unreal Editor plugin
+- UnrealEngineMCP 1.0.0: Python FastMCP server (uv), length-prefixed TCP bridge, C++ Unreal Editor plugin
 - Core tool families: system, actors, levels, assets, blueprints, materials, lighting, rendering, project, intelligence, physics
 - Safe / advanced security modes and localhost-default bridge
-- Installation scripts, docs, pytest suite, and GitHub CI/CD/release workflows
+- Astro GitHub Pages install site with UTF-8 remote installers and local `installers/`
+- CI, CD, Pages, and Release GitHub Actions workflows
+- Branch protection on `main` and `develop`
+- Installation scripts, docs, and pytest suite
+
+### Changed
+
+- Docs aligned with Pages one-liners, Git Flow, and website https://axcel-blade.github.io/UE-MCP/
