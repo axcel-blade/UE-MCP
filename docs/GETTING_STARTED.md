@@ -7,8 +7,8 @@
 uv run python scripts/install_plugin.py --project "D:\Path\To\YourProject.uproject"
 ```
 
-3. Open Unreal Editor with **UnrealEngineMCP** (+ Editor Scripting Utilities) enabled; compile if prompted.
-4. Confirm Output Log shows UnrealEngineMCP bridge listening on `127.0.0.1:55557`.
+3. Open Unreal Editor with **Unreal Engine MCP** (+ Editor Scripting Utilities) enabled; compile if prompted.
+4. Confirm Output Log shows Unreal Engine MCP bridge listening on `127.0.0.1:55557`.
 5. Start your MCP client with the `unreal-engine-mcp` config (`uv run ...`).
 6. Call `unreal_ping`.
 7. Call `unreal_get_all_actors`.

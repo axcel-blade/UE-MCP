@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a problem with UnrealEngineMCP
+about: Report a problem with Unreal Engine MCP
 title: "[BUG] "
 labels: bug
 assignees: ""

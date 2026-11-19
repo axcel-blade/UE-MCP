@@ -3,7 +3,7 @@
 ## Connection refused
 
 - Is the Editor running?
-- Is UnrealEngineMCP enabled?
+- Is Unreal Engine MCP enabled?
 - Check port `55557` is free and matches config (`UNREAL_ENGINE_MCP_PORT`).
 - Look for bridge bind errors in Output Log.
 - Run `uv run python scripts/test_connection.py` and `uv run python scripts/diagnose.py`.

@@ -1,4 +1,4 @@
-# UnrealEngineMCP Editor Plugin
+# Unreal Engine MCP Editor Plugin
 
 C++ Unreal Engine 5 Editor plugin that hosts the localhost TCP bridge and executes MCP tool methods on the Game Thread.
 

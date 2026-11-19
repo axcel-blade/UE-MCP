@@ -27,7 +27,7 @@ uv run python scripts/test_connection.py
 - MCP client (Cursor, Claude Desktop, VS Code, …)
 - Branch / commit
 - Relevant logs (redact secrets)
-- Whether the UnrealEngineMCP plugin loaded and which port it bound
+- Whether the Unreal Engine MCP plugin loaded and which port it bound
 
 ## Security issues
 

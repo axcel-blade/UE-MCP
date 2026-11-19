@@ -14,7 +14,7 @@ Do **not** open a public GitHub issue for security vulnerabilities.
 Please report privately using one of:
 
 1. GitHub **Security Advisories** for this repository (preferred)
-2. Email the maintainers listed in [SUPPORT.md](SUPPORT.md) with subject `[SECURITY] UnrealEngineMCP`
+2. Email the maintainers listed in [SUPPORT.md](SUPPORT.md) with subject `[SECURITY] Unreal Engine MCP`
 
 Include:
 
@@ -28,7 +28,7 @@ We aim to acknowledge reports within **7 days** and provide a remediation plan o
 
 ## Product security defaults
 
-UnrealEngineMCP is designed for **trusted local development**:
+Unreal Engine MCP is designed for **trusted local development**:
 
 - Bridge binds to `127.0.0.1` by default
 - Safe mode restricts destructive and script-execution tools
