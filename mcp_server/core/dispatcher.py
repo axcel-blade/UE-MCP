@@ -14,6 +14,19 @@ from mcp_server.exceptions import UnrealEngineMCPError
 logger = logging.getLogger(__name__)
 
 
+def flatten_tool_params(params: dict[str, Any] | None) -> dict[str, Any]:
+    """Normalize tool args from hosts that wrap payloads as {"params": {...}}.
+
+    FastMCP tools often use ``**params``, so a Cursor-style ``{"params": {...}}``
+    request becomes nested again before it reaches the bridge. Flatten one level.
+    """
+    out = dict(params or {})
+    if "params" in out and isinstance(out["params"], dict):
+        nested = out.pop("params")
+        out = {**nested, **out}
+    return out
+
+
 class Dispatcher:
     def __init__(self, settings: Settings, client: Any, jobs: JobManager) -> None:
         self.settings = settings
@@ -27,7 +40,7 @@ class Dispatcher:
         *,
         confirmed: bool = False,
     ) -> dict[str, Any]:
-        params = dict(params or {})
+        params = flatten_tool_params(params)
         confirmed = bool(params.pop("confirmed", confirmed))
         try:
             assert_tool_allowed(self.settings, method, confirmed=confirmed)

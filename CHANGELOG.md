@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `unreal_open_level` defers `FEditorFileUtils::LoadMap` to the next core tick so UE 5.8 no longer fatals when opening a level from the MCP game-thread dispatcher
+- Dispatcher flattens nested `{"params": {...}}` tool arguments so Cursor MCP hosts apply spawn/location/name fields correctly
 -
 
 ## [1.0.2] - 2026-11-19
