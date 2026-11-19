@@ -1,6 +1,6 @@
 [project]
 name = "unreal-engine-mcp"
-version = "0.1.0"
+version = "1.0.0"
 description = "Production Unreal Engine 5 Model Context Protocol (MCP) server and editor plugin"
 readme = "README.md"
 requires-python = ">=3.11"
