@@ -65,7 +65,7 @@ jobs:
           TAG_VERSION="${{ steps.refs.outputs.tag }}"
           TAG_VERSION="${TAG_VERSION#v}"
           PKG="$(uv run python -c 'from mcp_server import __version__; print(__version__)')"
-          TOML="$(uv run python -c 'import tomllib, pathlib; print(tomllib.loads(pathlib.Path(\"pyproject.toml\").read_text(encoding=\"utf-8\"))[\"project\"][\"version\"])')"
+          TOML="$(uv run python -c 'import tomllib, pathlib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"])')"
           echo "tag=$TAG_VERSION pkg=$PKG pyproject=$TOML"
           test "$TAG_VERSION" = "$PKG"
           test "$TAG_VERSION" = "$TOML"
