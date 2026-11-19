@@ -85,7 +85,7 @@ uv run python scripts/test_connection.py
 1. Copy `UnrealEngineMCP/` → `<Project>/Plugins/UnrealEngineMCP/`
 2. Right-click `.uproject` → Generate Visual Studio project files
 3. Build the Editor target
-4. Enable **UnrealEngineMCP** (+ Editor Scripting Utilities) and restart
+4. Enable **Unreal Engine MCP** (+ Editor Scripting Utilities) and restart
 5. Confirm Output Log: bridge listening on `127.0.0.1:55557`
 
 Or download `UnrealEngineMCP-plugin-*.zip` from the [latest GitHub Release](https://github.com/axcel-blade/UE-MCP/releases/latest) when available.

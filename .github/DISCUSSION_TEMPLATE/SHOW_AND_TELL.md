@@ -5,7 +5,7 @@ labels: []
 
 ## What I built
 
-## How UnrealEngineMCP helped
+## How Unreal Engine MCP helped
 
 ## Screenshots / videos
 

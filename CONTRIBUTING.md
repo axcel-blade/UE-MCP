@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for contributing to **UnrealEngineMCP**.
+Thanks for contributing to **Unreal Engine MCP**.
 
 ## Git Flow
 

@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- UnrealEngineMCP 1.0.0: Python FastMCP server (uv), length-prefixed TCP bridge, C++ Unreal Editor plugin
+- Unreal Engine MCP 1.0.0: Python FastMCP server (uv), length-prefixed TCP bridge, C++ Unreal Editor plugin
 - Core tool families: system, actors, levels, assets, blueprints, materials, lighting, rendering, project, intelligence, physics
 - Safe / advanced security modes and localhost-default bridge
 - Astro GitHub Pages install site with UTF-8 remote installers and local `installers/`
