@@ -24,7 +24,7 @@
 ## Pages / install site 404
 
 - Enable **Settings → Pages → Source: GitHub Actions**.
-- Ensure `site/` is on `develop` or `main` and the **Pages** workflow succeeded.
+- Ensure `site/` is on `main` and the **Pages** deploy job succeeded (builds also run on `develop`).
 - Website URL: [https://axcel-blade.github.io/UE-MCP/](https://axcel-blade.github.io/UE-MCP/)
 
 ## Tools return unsupported

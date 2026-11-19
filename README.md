@@ -145,7 +145,7 @@ Details: [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/GIT_FLOW.md](docs/GIT_FLOW.
 | Workflow | When | What |
 |----------|------|------|
 | [CI](.github/workflows/ci.yml) | Push/PR on Git Flow branches | uv lint, pytest (3.11–3.13), plugin layout check |
-| [Pages](.github/workflows/pages.yml) | Push to `develop`/`main` touching `site/**`, or manual | Build Astro site and deploy GitHub Pages |
+| [Pages](.github/workflows/pages.yml) | Push to `develop`/`main` touching `site/**`, or manual | Build Astro site; deploy GitHub Pages from `main` only |
 | [Release](.github/workflows/release.yml) | Manual dispatch (from `main`) | Version bump, CHANGELOG, tag `v*`, GitHub Release, dispatch CD |
 | [CD](.github/workflows/cd.yml) | Tag `v*` / Release dispatch | Build wheels, pack plugin zip, attach assets, optional PyPI, refresh Pages |
 
