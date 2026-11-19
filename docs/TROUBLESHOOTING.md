@@ -2,11 +2,26 @@
 
 ## Connection refused
 
-- Is the Editor running?
+- Is the Editor running **with a project open**? The bridge only starts when the UnrealEngineMCP project plugin loads.
 - Is Unreal Engine MCP enabled?
 - Check port `55557` is free and matches config (`UNREAL_ENGINE_MCP_PORT`).
 - Look for bridge bind errors in Output Log.
 - Run `uv run python scripts/test_connection.py` and `uv run python scripts/diagnose.py`.
+
+## Plugin “designed for build 5.x” / incompatible dialog
+
+The Editor plugin ships as **source** and is meant for UE **5.3+**. The `.uplugin` intentionally omits `EngineVersion` so newer Editors (5.4–5.8, …) do not block on a version mismatch dialog.
+
+If you still see the dialog (older plugin install):
+
+1. Update/reinstall the plugin from this repo (`uv run python scripts/install_plugin.py --project …`).
+2. Or click **Yes** once to load anyway, then rebuild so `Binaries/` matches your Editor.
+
+## Bridge never listens after opening the project
+
+- Confirm Output Log contains `UnrealEngineMCP bridge listening on 127.0.0.1:55557`.
+- Ensure `Plugins/UnrealEngineMCP/Binaries/` contains `UnrealEditor-UnrealEngineMCP.dll` built for your engine.
+- Close Live Coding / the Editor before a clean rebuild if the module lock blocks compilation.
 
 ## Plugin not compiling
 
