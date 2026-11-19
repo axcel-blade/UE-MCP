@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Smoke-test TCP connectivity to the Unreal bridge."""
 
 from __future__ import annotations

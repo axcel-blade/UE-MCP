@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Invoke RunUAT BuildPlugin when engine path is known."""
 
 from __future__ import annotations

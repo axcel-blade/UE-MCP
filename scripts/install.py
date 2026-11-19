@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """End-to-end Windows installer helper (uses uv for Python deps)."""
 
 from __future__ import annotations

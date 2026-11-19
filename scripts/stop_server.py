@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Guidance for stopping a locally launched MCP server."""
 
 print(

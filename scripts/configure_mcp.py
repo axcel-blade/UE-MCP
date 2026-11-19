@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Generate MCP client configs that launch the server via uv."""
 
 from __future__ import annotations

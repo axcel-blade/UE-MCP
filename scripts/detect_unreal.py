@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Detect installed Unreal Engine versions on Windows."""
 
 from __future__ import annotations

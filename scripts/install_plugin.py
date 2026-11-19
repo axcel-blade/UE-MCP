@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Copy UnrealEngineMCP plugin into a project Plugins folder."""
 
 from __future__ import annotations
