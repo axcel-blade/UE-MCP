@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -
 
+## [1.0.1] - 2026-11-19
+
+### Fixed
+
+- Asset reimport (`reimport_asset` / related tools) now uses `FReimportManager` instead of `UEditorAssetLibrary::ReimportAsset` for reliable Editor reimports
+
 ## [1.0.0] - 2026-11-19
 
 ### Added
