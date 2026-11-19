@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+-
+
+## [1.0.2] - 2026-11-19
+
+### Fixed
+
 - Omit `EngineVersion` from `UnrealEngineMCP.uplugin` so UE 5.4+ no longer blocks on the “designed for build 5.3.0” incompatible-plugin dialog (source plugin still targets 5.3+)
 - TCP bridge now accepts concurrent MCP clients on worker threads and uses blocking reads so persistent connections no longer drop between requests (`0 bytes read` / rapid connect-disconnect)
 - Document project-must-be-open and incompatible-dialog troubleshooting for the Editor bridge
