@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "unreal-engine-mcp": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "PATH_TO_UE_MCP_REPO",
+        "unreal-engine-mcp"
+      ]
+    }
+  }
+}

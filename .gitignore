@@ -1,0 +1,55 @@
+# Python / uv
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg
+
+# Unreal
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+*.sln
+*.vs/
+.vs/
+*.VC.db
+*.opensdf
+*.sdf
+*.suo
+*.xcodeproj
+*.xcworkspace
+
+# Logs / outputs
+logs/
+output/
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Secrets / local config
+.env
+config/local.json
+*.pem
+auth_token.txt
+
+# Temp / bootstrap helpers
+tmp/
+.temp/
+
+# Astro site (pnpm)
+site/node_modules/
+site/dist/
+site/.astro/
+site/package-lock.json

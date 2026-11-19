@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and discussion
+    url: https://github.com/axcel-blade/UE-MCP/discussions
+    about: Ask questions or share ideas in Discussions instead of opening an issue.
+  - name: Security vulnerability
+    url: https://github.com/axcel-blade/UE-MCP/security/advisories/new
+    about: Report security issues privately. Do not open a public issue.

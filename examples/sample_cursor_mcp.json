@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "unreal-engine-mcp": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "PATH_TO_UE_MCP_REPO",
+        "unreal-engine-mcp"
+      ],
+      "env": {
+        "UNREAL_ENGINE_MCP_HOST": "127.0.0.1",
+        "UNREAL_ENGINE_MCP_PORT": "55557",
+        "UNREAL_ENGINE_MCP_SECURITY_MODE": "safe"
+      }
+    }
+  }
+}
