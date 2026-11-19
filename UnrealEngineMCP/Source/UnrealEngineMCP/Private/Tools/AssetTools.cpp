@@ -5,6 +5,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "EditorAssetLibrary.h"
+#include "EditorReimportHandler.h"
 #include "ObjectTools.h"
 #include "Misc/PackageName.h"
 #include "HAL/FileManager.h"
@@ -150,7 +151,8 @@ void FUnrealEngineMCPAssetTools::Register()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			FString Path = Params->GetStringField(TEXT("path"));
-			const bool bOk = UEditorAssetLibrary::ReimportAsset(Path);
+			UObject* ReObj = UEditorAssetLibrary::LoadAsset(Path);
+			const bool bOk = ReObj && FReimportManager::Instance()->Reimport(ReObj, /*bAskForNewFileIfMissing*/false, /*bShowNotification*/false);
 			Obj->SetBoolField(TEXT("reimported"), bOk);
 			Obj->SetStringField(TEXT("path"), Path);
 			if (!bOk) Obj->SetStringField(TEXT("error"), TEXT("Reimport failed"));
@@ -359,7 +361,8 @@ void FUnrealEngineMCPAssetTools::Register()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			FString Path = Params->GetStringField(TEXT("path"));
-			const bool bOk = UEditorAssetLibrary::ReimportAsset(Path);
+			UObject* ReObj = UEditorAssetLibrary::LoadAsset(Path);
+			const bool bOk = ReObj && FReimportManager::Instance()->Reimport(ReObj, /*bAskForNewFileIfMissing*/false, /*bShowNotification*/false);
 			Obj->SetBoolField(TEXT("reimported"), bOk);
 			Obj->SetStringField(TEXT("path"), Path);
 			if (!bOk) Obj->SetStringField(TEXT("error"), TEXT("Reimport failed"));
