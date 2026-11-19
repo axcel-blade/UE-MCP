@@ -7,6 +7,7 @@
 #include "Engine/Level.h"
 #include "EngineUtils.h"
 #include "FileHelpers.h"
+#include "Containers/Ticker.h"
 #include "EditorLevelUtils.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/LevelStreamingDynamic.h"
@@ -73,12 +74,31 @@ void FUnrealEngineMCPLevelTools::Register()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			FString Path = Params->GetStringField(TEXT("path"));
-			if (!FEditorFileUtils::LoadMap(Path))
+			if (Path.IsEmpty())
 			{
-				Obj->SetStringField(TEXT("error"), FString::Printf(TEXT("Failed to open level: %s"), *Path));
+				Obj->SetStringField(TEXT("error"), TEXT("path is required, e.g. /Game/Maps/MyLevel"));
 				return Obj;
 			}
-			Obj->SetStringField(TEXT("opened"), Path);
+			// LoadMap must not run inside a task-graph callback (UE 5.8 fatal in
+			// EditorServer.cpp). Validate now, then load on the next core tick.
+			FString PackageName = Path;
+			int32 DotIdx;
+			if (PackageName.FindChar(TEXT('.'), DotIdx))
+			{
+				PackageName.LeftInline(DotIdx);
+			}
+			if (!FPackageName::DoesPackageExist(PackageName))
+			{
+				Obj->SetStringField(TEXT("error"), FString::Printf(TEXT("Level not found: %s"), *Path));
+				return Obj;
+			}
+			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([PackageName](float)
+			{
+				FEditorFileUtils::LoadMap(PackageName, false, true);
+				return false; // one-shot
+			}));
+			Obj->SetStringField(TEXT("opened"), PackageName);
+			Obj->SetBoolField(TEXT("deferred"), true);
 			return Obj;
 		});
 		if (Result->HasField(TEXT("error"))) return Fail(Req, TEXT("engine_error"), Result->GetStringField(TEXT("error")));

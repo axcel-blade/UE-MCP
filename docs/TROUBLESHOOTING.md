@@ -10,7 +10,7 @@
 
 ## Plugin “designed for build 5.x” / incompatible dialog
 
-The Editor plugin ships as **source** and is meant for UE **5.3+**. The `.uplugin` intentionally omits `EngineVersion` so newer Editors (5.4–5.8, …) do not block on a version mismatch dialog.
+The Editor plugin ships as **source** and is meant for UE **5.3+** (verified on **5.8**). The `.uplugin` intentionally omits `EngineVersion` so newer Editors (5.4–5.8, …) do not block on a version mismatch dialog. Rebuild the plugin for each Editor version.
 
 If you still see the dialog (older plugin install):
 
