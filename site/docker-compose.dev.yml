@@ -1,0 +1,18 @@
+services:
+  site-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: unreal-engine-mcp-site:dev
+    ports:
+      - "4321:4321"
+    volumes:
+      - .:/app
+      - site_node_modules:/app/node_modules
+    environment:
+      ASTRO_SITE: http://localhost:4321
+      ASTRO_BASE: /
+    command: pnpm dev --host 0.0.0.0 --port 4321
+
+volumes:
+  site_node_modules:
