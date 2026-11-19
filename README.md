@@ -3,7 +3,6 @@
 [![CI](https://github.com/axcel-blade/UE-MCP/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/axcel-blade/UE-MCP/actions/workflows/ci.yml)
 [![CD](https://github.com/axcel-blade/UE-MCP/actions/workflows/cd.yml/badge.svg)](https://github.com/axcel-blade/UE-MCP/actions/workflows/cd.yml)
 [![Pages](https://github.com/axcel-blade/UE-MCP/actions/workflows/pages.yml/badge.svg?branch=develop)](https://github.com/axcel-blade/UE-MCP/actions/workflows/pages.yml)
-[![Release](https://github.com/axcel-blade/UE-MCP/actions/workflows/release.yml/badge.svg)](https://github.com/axcel-blade/UE-MCP/actions/workflows/release.yml)
 [![Latest release](https://img.shields.io/github/v/release/axcel-blade/UE-MCP?display_name=tag&logo=github)](https://github.com/axcel-blade/UE-MCP/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-c4f82a)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
