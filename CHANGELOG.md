@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+-
+
+## [1.0.4] - 2026-11-20
+
+### Fixed
+
 - TCP client reconnects once after a mid-request bridge drop and surfaces clearer “Editor still open?” guidance when connection is refused or lost
 - `unreal_save_level` no longer opens a modal save/checkout dialog that blocked the game thread and hung the bridge; untitled maps now return a clear error
 - `unreal_create_level` saves the new map to disk so `unreal_open_level` can find it (previously work continued in the old map)
