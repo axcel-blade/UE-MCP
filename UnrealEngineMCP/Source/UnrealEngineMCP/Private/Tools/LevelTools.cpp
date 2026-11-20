@@ -59,8 +59,20 @@ void FUnrealEngineMCPLevelTools::Register()
 				Obj->SetStringField(TEXT("error"), TEXT("Failed to create level asset"));
 				return Obj;
 			}
+			// Write the new map to disk right away; otherwise unreal_open_level's
+			// DoesPackageExist check fails and callers keep editing the old map.
+			UPackage* Package = NewAsset->GetOutermost();
+			const FString Filename = FPackageName::LongPackageNameToFilename(Package->GetName(), FPackageName::GetMapPackageExtension());
+			FSavePackageArgs SaveArgs;
+			SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+			const bool bSaved = UPackage::SavePackage(Package, NewAsset, *Filename, SaveArgs);
 			Obj->SetStringField(TEXT("path"), NewAsset->GetPathName());
 			Obj->SetStringField(TEXT("name"), NewAsset->GetName());
+			Obj->SetBoolField(TEXT("saved"), bSaved);
+			if (!bSaved)
+			{
+				Obj->SetStringField(TEXT("error"), FString::Printf(TEXT("Level asset created but could not be saved to %s"), *Filename));
+			}
 			return Obj;
 		});
 		if (Result->HasField(TEXT("error"))) return Fail(Req, TEXT("engine_error"), Result->GetStringField(TEXT("error")));
@@ -116,16 +128,30 @@ void FUnrealEngineMCPLevelTools::Register()
 				Obj->SetStringField(TEXT("error"), TEXT("No editor world"));
 				return Obj;
 			}
-			const bool bSaved = FEditorFileUtils::SaveCurrentLevel();
-			Obj->SetBoolField(TEXT("saved"), bSaved);
+			// FEditorFileUtils::SaveCurrentLevel() can open a modal checkout/save dialog,
+			// which blocks the game thread and hangs the bridge. Save the persistent level
+			// directly instead, and refuse untitled maps (they would need a Save As prompt).
+			ULevel* Level = World->PersistentLevel;
+			UPackage* Package = Level ? Level->GetOutermost() : nullptr;
 			Obj->SetStringField(TEXT("level"), World->GetMapName());
+			if (!Package || FPackageName::IsTempPackage(Package->GetName()) || Package->GetName().StartsWith(TEXT("/Temp/")))
+			{
+				Obj->SetBoolField(TEXT("saved"), false);
+				Obj->SetStringField(TEXT("error"), TEXT("Current level is untitled; create or open a level asset (e.g. unreal_create_level + unreal_open_level) before saving"));
+				return Obj;
+			}
+			const bool bSaved = FEditorFileUtils::SaveLevel(Level);
+			Obj->SetBoolField(TEXT("saved"), bSaved);
+			Obj->SetStringField(TEXT("package"), Package->GetName());
 			if (!bSaved)
 			{
-				Obj->SetStringField(TEXT("error"), TEXT("SaveCurrentLevel returned false"));
+				Obj->SetStringField(TEXT("error"), TEXT("SaveLevel returned false"));
 			}
 			return Obj;
 		});
-		if (Result->HasField(TEXT("error")) && !Result->GetBoolField(TEXT("saved")))
+		bool bSavedField = false;
+		Result->TryGetBoolField(TEXT("saved"), bSavedField);
+		if (Result->HasField(TEXT("error")) && !bSavedField)
 		{
 			return Fail(Req, TEXT("engine_error"), Result->GetStringField(TEXT("error")));
 		}

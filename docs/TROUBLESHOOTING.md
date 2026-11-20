@@ -7,6 +7,8 @@
 - Check port `55557` is free and matches config (`UNREAL_ENGINE_MCP_PORT`).
 - Look for bridge bind errors in Output Log.
 - Run `uv run python scripts/test_connection.py` and `uv run python scripts/diagnose.py`.
+- Prefer plugin **1.0.2+** (blocking TCP reads + concurrent clients). Older builds drop persistent sockets between requests (`0 bytes read` / `Connection lost`).
+- The Python MCP client reconnects **once** after a mid-request drop; if it still fails, restart the Editor with the project open and confirm the Output Log shows the bridge listening.
 
 ## Plugin “designed for build 5.x” / incompatible dialog
 

@@ -43,10 +43,20 @@ void FUnrealEngineMCPRenderingTools::Register()
 			FString Dir = Settings && !Settings->ScreenshotDirectory.IsEmpty()
 				? Settings->ScreenshotDirectory
 				: FPaths::ProjectSavedDir() / TEXT("Screenshots/UnrealEngineMCP");
+			// A relative setting (the default "Saved/Screenshots/UnrealEngineMCP") must be
+			// anchored to the project, not the process cwd (Engine/Binaries/Win64).
+			if (FPaths::IsRelative(Dir))
+			{
+				Dir = FPaths::ProjectDir() / Dir;
+			}
 			IFileManager::Get().MakeDirectory(*Dir, true);
 			FString Filename = Params.IsValid() && Params->HasField(TEXT("filename"))
 				? Params->GetStringField(TEXT("filename"))
 				: FString::Printf(TEXT("viewport_%s.png"), *FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S")));
+			if (FPaths::GetExtension(Filename).IsEmpty())
+			{
+				Filename += TEXT(".png");
+			}
 			FString FullPath = FPaths::ConvertRelativePathToFull(Dir / Filename);
 
 			FScreenshotRequest::RequestScreenshot(FullPath, false, false);
@@ -70,10 +80,20 @@ void FUnrealEngineMCPRenderingTools::Register()
 			FString Dir = Settings && !Settings->ScreenshotDirectory.IsEmpty()
 				? Settings->ScreenshotDirectory
 				: FPaths::ProjectSavedDir() / TEXT("Screenshots/UnrealEngineMCP");
+			// A relative setting (the default "Saved/Screenshots/UnrealEngineMCP") must be
+			// anchored to the project, not the process cwd (Engine/Binaries/Win64).
+			if (FPaths::IsRelative(Dir))
+			{
+				Dir = FPaths::ProjectDir() / Dir;
+			}
 			IFileManager::Get().MakeDirectory(*Dir, true);
 			FString Filename = Params.IsValid() && Params->HasField(TEXT("filename"))
 				? Params->GetStringField(TEXT("filename"))
 				: FString::Printf(TEXT("screenshot_%s.png"), *FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S")));
+			if (FPaths::GetExtension(Filename).IsEmpty())
+			{
+				Filename += TEXT(".png");
+			}
 			FString FullPath = FPaths::ConvertRelativePathToFull(Dir / Filename);
 			FScreenshotRequest::RequestScreenshot(FullPath, false, false);
 			Obj->SetStringField(TEXT("path"), FullPath);
