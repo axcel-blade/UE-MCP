@@ -93,7 +93,9 @@ class TcpClient:
                     )
                 except TimeoutError as exc:
                     await self.disconnect()
-                    raise TimeoutError_(f"Timed out waiting for Unreal response to {method}") from exc
+                    raise TimeoutError_(
+                        f"Timed out waiting for Unreal response to {method}"
+                    ) from exc
                 except (asyncio.IncompleteReadError, ConnectionResetError, OSError) as exc:
                     await self.disconnect()
                     last_exc = exc

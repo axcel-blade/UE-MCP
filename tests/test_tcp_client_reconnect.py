@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import struct
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from mcp_server.clients.tcp_client import TcpClient
 from mcp_server.core.protocol import BridgeResponse, encode_message
 from mcp_server.exceptions import ConnectionError_
@@ -67,8 +65,10 @@ async def test_request_raises_after_second_drop() -> None:
         reader.readexactly = AsyncMock(side_effect=asyncio.IncompleteReadError(b"", 4))
         return reader, writer
 
-    with patch("mcp_server.clients.tcp_client.asyncio.open_connection", side_effect=always_drop):
-        with pytest.raises(ConnectionError_, match="Connection lost during unreal_ping"):
-            await client.request("unreal_ping", {})
+    with (
+        patch("mcp_server.clients.tcp_client.asyncio.open_connection", side_effect=always_drop),
+        pytest.raises(ConnectionError_, match="Connection lost during unreal_ping"),
+    ):
+        await client.request("unreal_ping", {})
 
     await client.disconnect()
