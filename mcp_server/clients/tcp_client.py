@@ -69,31 +69,52 @@ class TcpClient:
             await self.connect()
 
     async def request(self, method: str, params: dict[str, Any] | None = None) -> BridgeResponse:
+        """Send one bridge request, reconnecting once if the peer dropped mid-call."""
+        last_exc: Exception | None = None
         async with self._lock:
-            await self.ensure_connected()
-            assert self._reader is not None and self._writer is not None
-            req = BridgeRequest(
-                method=method,
-                params=params or {},
-                auth=self.auth_token or None,
-            )
-            frame = encode_message(req)
-            try:
-                self._writer.write(frame)
-                await self._writer.drain()
-                length_bytes = await asyncio.wait_for(
-                    self._reader.readexactly(4), timeout=self.request_timeout
+            for attempt in range(2):
+                await self.ensure_connected()
+                assert self._reader is not None and self._writer is not None
+                req = BridgeRequest(
+                    method=method,
+                    params=params or {},
+                    auth=self.auth_token or None,
                 )
-                (length,) = struct.unpack(">I", length_bytes)
-                body = await asyncio.wait_for(
-                    self._reader.readexactly(length), timeout=self.request_timeout
-                )
-            except TimeoutError as exc:
-                await self.disconnect()
-                raise TimeoutError_(f"Timed out waiting for Unreal response to {method}") from exc
-            except (asyncio.IncompleteReadError, ConnectionResetError, OSError) as exc:
-                await self.disconnect()
-                raise ConnectionError_(f"Connection lost during {method}: {exc}") from exc
+                frame = encode_message(req)
+                try:
+                    self._writer.write(frame)
+                    await self._writer.drain()
+                    length_bytes = await asyncio.wait_for(
+                        self._reader.readexactly(4), timeout=self.request_timeout
+                    )
+                    (length,) = struct.unpack(">I", length_bytes)
+                    body = await asyncio.wait_for(
+                        self._reader.readexactly(length), timeout=self.request_timeout
+                    )
+                except TimeoutError as exc:
+                    await self.disconnect()
+                    raise TimeoutError_(f"Timed out waiting for Unreal response to {method}") from exc
+                except (asyncio.IncompleteReadError, ConnectionResetError, OSError) as exc:
+                    await self.disconnect()
+                    last_exc = exc
+                    if attempt == 0:
+                        logger.warning(
+                            "Bridge dropped during %s; reconnecting once (%s)",
+                            method,
+                            exc,
+                        )
+                        continue
+                    raise ConnectionError_(
+                        f"Connection lost during {method}: {exc}. "
+                        "Is the Unreal Editor still open with UnrealEngineMCP loaded "
+                        f"on {self.host}:{self.port}?"
+                    ) from exc
 
-            data = json.loads(body.decode("utf-8"))
-            return BridgeResponse.model_validate(data)
+                data = json.loads(body.decode("utf-8"))
+                return BridgeResponse.model_validate(data)
+
+        raise ConnectionError_(
+            f"Connection lost during {method}: {last_exc}. "
+            "Is the Unreal Editor still open with UnrealEngineMCP loaded "
+            f"on {self.host}:{self.port}?"
+        )
