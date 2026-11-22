@@ -110,7 +110,7 @@ void FUnrealEngineMCPAssetTools::Register()
 	Reg.Register(TEXT("unreal_import_asset"), FUnrealEngineMCPToolHandler::CreateLambda([](const FUnrealEngineMCPRequest& Req)
 	{
 		TSharedPtr<FJsonObject> Params = Req.Params;
-		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJson([Params]()
+		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJsonOnTicker([Params]()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			FString Source = Params->GetStringField(TEXT("source_path"));
@@ -147,7 +147,7 @@ void FUnrealEngineMCPAssetTools::Register()
 	Reg.Register(TEXT("unreal_reimport_asset"), FUnrealEngineMCPToolHandler::CreateLambda([](const FUnrealEngineMCPRequest& Req)
 	{
 		TSharedPtr<FJsonObject> Params = Req.Params;
-		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJson([Params]()
+		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJsonOnTicker([Params]()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			FString Path = Params->GetStringField(TEXT("path"));
@@ -305,7 +305,7 @@ void FUnrealEngineMCPAssetTools::Register()
 			Params->SetStringField(TEXT("destination_path"), TEXT("/Game/Imported/Blender"));
 		}
 		// Reuse import pipeline
-		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJson([Params]()
+		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJsonOnTicker([Params]()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			FString Source = Params->GetStringField(TEXT("source_path"));
@@ -364,7 +364,7 @@ void FUnrealEngineMCPAssetTools::Register()
 	Reg.Register(TEXT("unreal_reimport_blender_asset"), FUnrealEngineMCPToolHandler::CreateLambda([](const FUnrealEngineMCPRequest& Req)
 	{
 		TSharedPtr<FJsonObject> Params = Req.Params;
-		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJson([Params]()
+		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJsonOnTicker([Params]()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			FString Path = Params->GetStringField(TEXT("path"));

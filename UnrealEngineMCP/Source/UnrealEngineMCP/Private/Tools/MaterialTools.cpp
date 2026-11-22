@@ -99,7 +99,13 @@ void FUnrealEngineMCPMaterialTools::Register()
 			UMaterialInstanceConstant* MIC=LoadObject<UMaterialInstanceConstant>(nullptr,*Params->GetStringField(TEXT("path")));
 			if(!MIC){Obj->SetStringField(TEXT("error"),TEXT("Material instance not found")); return Obj;}
 			FString Name=Params->GetStringField(TEXT("name"));
-			FString Type=Params->HasField(TEXT("type"))?Params->GetStringField(TEXT("type")):TEXT("scalar");
+			// Infer the type when omitted: colour-like input means a vector parameter.
+			FString Type;
+			if(!Params->TryGetStringField(TEXT("type"),Type) || Type.IsEmpty())
+			{
+				const bool bColorish = Params->HasField(TEXT("r")) || Params->HasTypedField<EJson::Object>(TEXT("value")) || Params->HasTypedField<EJson::Array>(TEXT("value"));
+				Type = bColorish ? TEXT("vector") : TEXT("scalar");
+			}
 			if(Name.IsEmpty()){Obj->SetStringField(TEXT("error"),TEXT("name is required")); return Obj;}
 			const FHashedMaterialParameterInfo Info{FName(*Name)};
 			if(Type.Equals(TEXT("scalar"), ESearchCase::IgnoreCase))

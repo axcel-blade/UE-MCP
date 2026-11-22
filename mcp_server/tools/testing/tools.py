@@ -12,11 +12,6 @@ if TYPE_CHECKING:
 
 def register(mcp: FastMCP, ctx: AppContext) -> None:
 
-    @mcp.tool(name="unreal_execute_editor_python")
-    async def unreal_execute_editor_python(**params: Any) -> dict[str, Any]:
-        """Execute Unreal Editor Python (advanced mode)."""
-        return await ctx.dispatcher.call("unreal_execute_editor_python", params)
-
     @mcp.tool(name="unreal_execute_console_command")
     async def unreal_execute_console_command(**params: Any) -> dict[str, Any]:
         """Execute an editor console command (advanced)."""

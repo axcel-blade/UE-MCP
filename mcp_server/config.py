@@ -33,6 +33,29 @@ class SecurityConfig(BaseModel):
     require_confirmation_for_destructive_actions: bool = True
     allow_python_execution: bool = False
     allow_console_commands: bool = False
+    # How unreal_execute_python asks before running (ported from Blender-MCP):
+    # restricted = never, confirmation = needs confirmed=true, trusted = runs directly.
+    script_permission: Literal["restricted", "confirmation", "trusted"] = "confirmation"
+    # Refuse scripts that start programs, delete files, use the network, quit the
+    # editor, etc. (static AST check before anything runs). A guard, not a sandbox.
+    safe_python_execution: bool = True
+
+
+class EditorConfig(BaseModel):
+    # Used by unreal_open_editor; auto-detected when empty.
+    executable: str = ""
+    project: str = ""
+    startup_timeout: float = 300.0
+
+
+class ProvidersConfig(BaseModel):
+    # Free asset libraries that need no key; Sketchfab needs an API token.
+    polyhaven_enabled: bool = True
+    polypizza_enabled: bool = True
+    polypizza_api_key: str = ""
+    sketchfab_enabled: bool = False
+    sketchfab_api_token: str = ""
+    download_directory: str = ""
 
 
 class PathsConfig(BaseModel):
@@ -53,6 +76,8 @@ class Settings(BaseSettings):
     unreal: UnrealBridgeConfig = Field(default_factory=UnrealBridgeConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     paths: PathsConfig = Field(default_factory=PathsConfig)
+    editor: EditorConfig = Field(default_factory=EditorConfig)
+    providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
 
     @property
     def host(self) -> str:
@@ -86,5 +111,20 @@ def load_settings(config_path: Path | None = None) -> Settings:
         data.setdefault("security", {})["mode"] = mode
     if level := os.environ.get("UNREAL_ENGINE_MCP_LOG_LEVEL"):
         data.setdefault("server", {})["log_level"] = level
+    if allow := os.environ.get("UNREAL_ENGINE_MCP_ALLOW_PYTHON"):
+        data.setdefault("security", {})["allow_python_execution"] = allow.lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+    if perm := os.environ.get("UNREAL_ENGINE_MCP_SCRIPT_PERMISSION"):
+        data.setdefault("security", {})["script_permission"] = perm
+    if exe := os.environ.get("UNREAL_ENGINE_MCP_EDITOR"):
+        data.setdefault("editor", {})["executable"] = exe
+    if project := os.environ.get("UNREAL_ENGINE_MCP_PROJECT"):
+        data.setdefault("editor", {})["project"] = project
+    if sketchfab := os.environ.get("SKETCHFAB_API_TOKEN"):
+        data.setdefault("providers", {})["sketchfab_api_token"] = sketchfab
+        data["providers"].setdefault("sketchfab_enabled", True)
 
     return Settings.model_validate(data)

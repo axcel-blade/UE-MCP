@@ -68,11 +68,24 @@ class TcpClient:
         if not self.connected:
             await self.connect()
 
-    async def request(self, method: str, params: dict[str, Any] | None = None) -> BridgeResponse:
-        """Send one bridge request, reconnecting once if the peer dropped mid-call."""
+    async def request(
+        self,
+        method: str,
+        params: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
+        retry: bool = True,
+    ) -> BridgeResponse:
+        """Send one bridge request, reconnecting once if the peer dropped mid-call.
+
+        ``timeout`` overrides the configured request timeout for this call. Pass
+        ``retry=False`` for non-idempotent requests (such as running a script), which
+        must not be resent after a dropped connection.
+        """
         last_exc: Exception | None = None
+        wait = timeout or self.request_timeout
         async with self._lock:
-            for attempt in range(2):
+            for attempt in range(2 if retry else 1):
                 await self.ensure_connected()
                 assert self._reader is not None and self._writer is not None
                 req = BridgeRequest(
@@ -84,13 +97,9 @@ class TcpClient:
                 try:
                     self._writer.write(frame)
                     await self._writer.drain()
-                    length_bytes = await asyncio.wait_for(
-                        self._reader.readexactly(4), timeout=self.request_timeout
-                    )
+                    length_bytes = await asyncio.wait_for(self._reader.readexactly(4), timeout=wait)
                     (length,) = struct.unpack(">I", length_bytes)
-                    body = await asyncio.wait_for(
-                        self._reader.readexactly(length), timeout=self.request_timeout
-                    )
+                    body = await asyncio.wait_for(self._reader.readexactly(length), timeout=wait)
                 except TimeoutError as exc:
                     await self.disconnect()
                     raise TimeoutError_(
@@ -99,7 +108,7 @@ class TcpClient:
                 except (asyncio.IncompleteReadError, ConnectionResetError, OSError) as exc:
                     await self.disconnect()
                     last_exc = exc
-                    if attempt == 0:
+                    if attempt == 0 and retry:
                         logger.warning(
                             "Bridge dropped during %s; reconnecting once (%s)",
                             method,

@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
--
+- Editor Python execution through PythonScriptPlugin (`unreal_execute_python`, alias `unreal_execute_editor_python`) with Blender-MCP-style restricted / confirmation / trusted modes and a static AST safety check (no subprocess, file or asset deletion, network, quit, console commands or eval)
+- `unreal_look` returns viewport screenshots as MCP images (lit, unlit, wireframe, detail lighting, lighting only, multi-angle); `unreal_capture_viewport` gains `max_size` (inline base64 PNG) and `view_mode`
+- `unreal_lookup_api`, `unreal_get_guide` (unreal_python, games, film, live_events, automotive, simulation), `unreal_search_scene`, `unreal_open_editor`, `unreal_close_editor`
+- Online assets from Poly Haven, Poly Pizza and Sketchfab: `unreal_search_online_assets`, `unreal_import_online_asset` (models, texture sets, HDRI sky light)
+- Industry packs: games (game mode, player start, nav mesh, triggers, Enhanced Input, PIE), film (cinematics, transform keys, CineCamera lens, Movie Render Queue), live events / virtual production (LED stage, display wall, lighting cues, Live Link / nDisplay status), automotive / product (CAD import incl. Datasmith, product studio, turntable, Variant Manager configurator, measure), simulation (digital-twin spawn, conveyor, physics stack, timed Simulate-in-Editor)
+- Config: `security.script_permission`, `security.safe_python_execution`, `editor.*`, `providers.*`; env `UNREAL_ENGINE_MCP_ALLOW_PYTHON`, `UNREAL_ENGINE_MCP_SCRIPT_PERMISSION`, `UNREAL_ENGINE_MCP_EDITOR`, `UNREAL_ENGINE_MCP_PROJECT`, `SKETCHFAB_API_TOKEN`
 
 ### Changed
 
@@ -28,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `unreal_create_blueprint_node` with `BeginPlay` added a duplicate event to Blueprints that already had one, breaking compilation; it now reuses the existing node (`existing: true`)
 - `unreal_compile_blueprint` failures now include the compiler error messages, which are also returned by `unreal_get_compile_errors`
 - `unreal_set_material_parameter` silently set vector parameters to white unless the colour was nested as `value: {r,g,b}`, and reported success for parameters that don't exist; it now accepts top-level `r/g/b/a`, `value` as an object or array, validates the parameter name and value, echoes the applied value, and refreshes the instance
+- Asset import and editor Python could crash the editor (TaskGraph `RecursionGuard` assertion) because they ran inside a task-graph game-thread task; they now run from the core ticker
+- `unreal_capture_viewport` failed with "No active viewport" after a level load; it now falls back to the level viewport
+- `unreal_set_material_parameter` infers `vector` when colour values are given without `type`
 - `unreal_capture_viewport` could report success without ever writing a file when the editor was backgrounded; it now forces a viewport draw and returns `file_written`
 
 ## [1.0.4] - 2026-11-20

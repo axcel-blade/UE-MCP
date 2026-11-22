@@ -42,7 +42,8 @@ public class UnrealEngineMCP : ModuleRules
 			"ToolMenus",
 			"ImageWrapper",
 			"RenderCore",
-			"RHI"
+			"RHI",
+			"PythonScriptPlugin"
 		});
 
 		if (Target.bBuildEditor)

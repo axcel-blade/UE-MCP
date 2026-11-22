@@ -20,6 +20,16 @@ This project is **not** affiliated with Epic Games.
 - MCP stdio server + Unreal Editor C++ plugin TCP bridge (localhost by default)
 - Length-prefixed JSON protocol with GameThread-safe execution
 - Actor, level, asset, Blueprint, material, lighting, and viewport tools
+- **Editor Python** (`unreal_execute_python`): anything the Unreal editor Python API can do, with restricted / confirmation / trusted modes and a static safety check (ported from Blender-MCP)
+- **See the result**: `unreal_look` returns viewport screenshots as images (lit, unlit, wireframe, lighting-only, multi-angle)
+- `unreal_lookup_api` (reads the live `unreal` module), `unreal_get_guide`, `unreal_search_scene`, `unreal_open_editor` / `unreal_close_editor`
+- Online assets: search and import CC0 models, textures and HDRIs from Poly Haven (plus Poly Pizza / Sketchfab with a key)
+- Industry packs:
+  - **Games**: game mode, player start, nav mesh, trigger volumes, Enhanced Input actions, Play/Simulate-in-Editor
+  - **Film / video**: Level Sequence cinematics with CineCamera moves and focus tracking, transform keys, lens settings, Movie Render Queue renders
+  - **Live events / virtual production**: LED volume and display-wall block-outs, DMX-style lighting cue sequences, Live Link and nDisplay status
+  - **Automotive / product design**: CAD import (FBX/OBJ/glTF/USD, STEP/IGES/JT via Datasmith), photo studio, turntables, Variant Manager configurators, measurement
+  - **Manufacturing / simulation**: conveyor lines, physics stacks, data-driven digital twins, timed Simulate-in-Editor runs with before/after transforms
 - Scene intelligence helpers and high-level workflows (`unreal_create_room`, `unreal_setup_lighting`, …)
 - Safe / Advanced security modes; destructive actions require confirmation
 - Optional bridge auth token; Blender→Unreal FBX import validation helpers

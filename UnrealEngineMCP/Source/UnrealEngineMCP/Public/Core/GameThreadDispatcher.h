@@ -32,4 +32,12 @@ public:
 
 	static void RunAndWait(TFunction<void()> Func, float TimeoutSeconds = 60.0f);
 	static TSharedPtr<FJsonObject> RunJson(TFunction<TSharedPtr<FJsonObject>()> Func, float TimeoutSeconds = 60.0f);
+
+	/**
+	 * Like RunJson, but runs Func from the core ticker in the main loop instead of a
+	 * task-graph game-thread task. Use for work that may flush rendering or pump the
+	 * task graph itself (asset import, map loads, editor Python): doing that inside a
+	 * game-thread task trips the TaskGraph RecursionGuard assertion and crashes.
+	 */
+	static TSharedPtr<FJsonObject> RunJsonOnTicker(TFunction<TSharedPtr<FJsonObject>()> Func, float TimeoutSeconds = 60.0f);
 };
