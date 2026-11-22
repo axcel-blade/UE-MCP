@@ -53,7 +53,8 @@ void FUnrealEngineMCPBlueprintTools::Register()
 			{
 				UClass* Found = FindObject<UClass>(nullptr, *FString::Printf(TEXT("/Script/Engine.%s"), *ParentName));
 				if (!Found) Found = LoadObject<UClass>(nullptr, *ParentName);
-				if (Found) Parent = Found;
+				if (!Found) { Obj->SetStringField(TEXT("error"), FString::Printf(TEXT("Parent class '%s' not found"), *ParentName)); return Obj; }
+				Parent = Found;
 			}
 			UBlueprintFactory* Factory = NewObject<UBlueprintFactory>();
 			Factory->ParentClass = Parent;
@@ -168,12 +169,22 @@ void FUnrealEngineMCPBlueprintTools::Register()
 			if (!BP) { Obj->SetStringField(TEXT("error"), TEXT("Blueprint not found")); return Obj; }
 			FString VarName = Params->GetStringField(TEXT("variable_name"));
 			FString TypeName = Params->HasField(TEXT("type")) ? Params->GetStringField(TEXT("type")) : TEXT("bool");
+			if (VarName.IsEmpty()) { Obj->SetStringField(TEXT("error"), TEXT("variable_name is required")); return Obj; }
 			FEdGraphPinType PinType;
 			PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
-			if (TypeName.Equals(TEXT("int"), ESearchCase::IgnoreCase) || TypeName.Equals(TEXT("int32"), ESearchCase::IgnoreCase))
+			if (TypeName.Equals(TEXT("bool"), ESearchCase::IgnoreCase) || TypeName.Equals(TEXT("boolean"), ESearchCase::IgnoreCase))
+				PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
+			else if (TypeName.Equals(TEXT("int"), ESearchCase::IgnoreCase) || TypeName.Equals(TEXT("int32"), ESearchCase::IgnoreCase))
 				PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
 			else if (TypeName.Equals(TEXT("float"), ESearchCase::IgnoreCase) || TypeName.Equals(TEXT("double"), ESearchCase::IgnoreCase))
+			{
+				// UE5 real pins need a float/double subcategory; a bare PC_Real trips
+				// checkNoEntry() in the Kismet compiler and crashes the editor.
 				PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+				PinType.PinSubCategory = TypeName.Equals(TEXT("float"), ESearchCase::IgnoreCase)
+					? UEdGraphSchema_K2::PC_Float
+					: UEdGraphSchema_K2::PC_Double;
+			}
 			else if (TypeName.Equals(TEXT("string"), ESearchCase::IgnoreCase))
 				PinType.PinCategory = UEdGraphSchema_K2::PC_String;
 			else if (TypeName.Equals(TEXT("name"), ESearchCase::IgnoreCase))
@@ -183,7 +194,16 @@ void FUnrealEngineMCPBlueprintTools::Register()
 				PinType.PinCategory = UEdGraphSchema_K2::PC_Struct;
 				PinType.PinSubCategoryObject = TBaseStructure<FVector>::Get();
 			}
-			FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType);
+			else
+			{
+				Obj->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported variable type '%s' (use bool, int, float, double, string, name, vector)"), *TypeName));
+				return Obj;
+			}
+			if (!FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType))
+			{
+				Obj->SetStringField(TEXT("error"), FString::Printf(TEXT("Could not add variable '%s' (name may already be in use)"), *VarName));
+				return Obj;
+			}
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 			Obj->SetStringField(TEXT("variable"), VarName);
 			Obj->SetStringField(TEXT("type"), TypeName);
@@ -499,7 +519,10 @@ void FUnrealEngineMCPBlueprintTools::Register()
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			UBlueprint* BP = LoadBP(Params->GetStringField(TEXT("path")));
 			if (!BP) { Obj->SetStringField(TEXT("error"), TEXT("Blueprint not found")); return Obj; }
-			FString FuncName = Params->GetStringField(TEXT("function_name"));
+			FString FuncName;
+			if (!Params->TryGetStringField(TEXT("function_name"), FuncName)) Params->TryGetStringField(TEXT("name"), FuncName);
+			if (FuncName.IsEmpty()) { Obj->SetStringField(TEXT("error"), TEXT("function_name is required")); return Obj; }
+			if (FindObject<UEdGraph>(BP, *FuncName)) { Obj->SetStringField(TEXT("error"), FString::Printf(TEXT("A graph named '%s' already exists"), *FuncName)); return Obj; }
 			UEdGraph* Graph = FBlueprintEditorUtils::CreateNewGraph(BP, FName(*FuncName), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
 			FBlueprintEditorUtils::AddFunctionGraph<UFunction>(BP, Graph, false, nullptr);
 			Obj->SetStringField(TEXT("function"), FuncName);

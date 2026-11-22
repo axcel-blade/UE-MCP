@@ -131,10 +131,36 @@ void FUnrealEngineMCPProjectTools::Register()
 		auto Result = FUnrealEngineMCPGameThreadDispatcher::RunJson([]()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-			const bool bOk = FEditorFileUtils::SaveDirtyPackages(false, true, true, false, false, false);
+			// SaveDirtyPackages() opens a modal "Save As" dialog for untitled (/Temp) maps,
+			// which blocks the game thread and hangs the bridge. Collect dirty packages
+			// ourselves, skip untitled ones, and save the rest without prompting.
+			TArray<UPackage*> Dirty;
+			FEditorFileUtils::GetDirtyContentPackages(Dirty);
+			FEditorFileUtils::GetDirtyWorldPackages(Dirty);
+			TArray<UPackage*> ToSave;
+			TArray<TSharedPtr<FJsonValue>> Skipped;
+			for (UPackage* Pkg : Dirty)
+			{
+				if (!Pkg) continue;
+				const FString Name = Pkg->GetName();
+				if (FPackageName::IsTempPackage(Name) || Name.StartsWith(TEXT("/Temp/")))
+				{
+					Skipped.Add(MakeShared<FJsonValueString>(Name));
+					continue;
+				}
+				ToSave.AddUnique(Pkg);
+			}
+			bool bOk = true;
+			if (ToSave.Num() > 0)
+			{
+				bOk = FEditorFileUtils::PromptForCheckoutAndSave(ToSave, false, false) == FEditorFileUtils::PR_Success;
+			}
 			Obj->SetBoolField(TEXT("saved"), bOk);
+			Obj->SetNumberField(TEXT("count"), ToSave.Num());
+			Obj->SetArrayField(TEXT("skipped_untitled"), Skipped);
 			return Obj;
 		});
+		if (Result->HasField(TEXT("error"))) return Fail(Req, TEXT("engine_error"), Result->GetStringField(TEXT("error")));
 		return Ok(Req, Result);
 	}), TEXT("Save dirty packages."));
 

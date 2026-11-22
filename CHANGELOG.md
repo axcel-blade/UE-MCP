@@ -17,7 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
--
+- `unreal_add_blueprint_variable` with `float`/`double` crashed the editor (UE5 `PC_Real` pin without float/double subcategory); unknown types and duplicate names now return errors
+- `unreal_save_all` hung the bridge on a modal "Save As" dialog for untitled maps; untitled packages are now skipped and reported in `skipped_untitled`
+- `unreal_spawn_actor` / `unreal_create_blueprint` silently fell back to `StaticMeshActor` / `Actor` for unknown classes; they now fail with an error
+- `unreal_add_blueprint_function` created an unnamed graph when `function_name` was missing, and allowed duplicates
+- `unreal_rename_asset` now validates input and accepts `destination_path` as well as `new_name`
 
 ## [1.0.4] - 2026-11-20
 

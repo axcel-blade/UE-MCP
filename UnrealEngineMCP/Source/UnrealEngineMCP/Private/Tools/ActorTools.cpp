@@ -95,10 +95,12 @@ void FUnrealEngineMCPActorTools::Register()
 				{
 					Found = LoadObject<UClass>(nullptr, *ClassName);
 				}
-				if (Found && Found->IsChildOf(AActor::StaticClass()))
+				if (!Found || !Found->IsChildOf(AActor::StaticClass()))
 				{
-					ActorClass = Found;
+					Obj->SetStringField(TEXT("error"), FString::Printf(TEXT("Actor class '%s' not found or not an Actor"), *ClassName));
+					return Obj;
 				}
+				ActorClass = Found;
 			}
 
 			FActorSpawnParameters SpawnParams;
