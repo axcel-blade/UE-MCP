@@ -105,6 +105,10 @@ void FUnrealEngineMCPActorTools::Register()
 
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.Name = Name.IsEmpty() ? NAME_None : FName(*Name);
+			// A forced name that is still in use (an existing actor, or one just deleted
+			// and held by the undo buffer) is a fatal error in SpawnActor. Treat it as a
+			// request so the engine picks a unique object name; the label stays exact.
+			SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 			AActor* Actor = World->SpawnActor<AActor>(ActorClass, Location, Rotation, SpawnParams);
 			if (!Actor)

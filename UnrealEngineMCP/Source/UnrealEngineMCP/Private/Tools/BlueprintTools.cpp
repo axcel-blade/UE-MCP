@@ -7,6 +7,7 @@
 #include "Factories/BlueprintFactory.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Core/ErrorHandler.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraph/EdGraph.h"
@@ -107,12 +108,25 @@ void FUnrealEngineMCPBlueprintTools::Register()
 			Obj->SetNumberField(TEXT("errors"), Log.NumErrors);
 			Obj->SetNumberField(TEXT("warnings"), Log.NumWarnings);
 			TArray<TSharedPtr<FJsonValue>> Messages;
+			TArray<FString> ErrorLines;
 			for (TSharedRef<FTokenizedMessage>& Msg : Log.Messages)
 			{
-				Messages.Add(MakeShared<FJsonValueString>(Msg->ToText().ToString()));
+				const FString Text = Msg->ToText().ToString();
+				Messages.Add(MakeShared<FJsonValueString>(Text));
+				if (Msg->GetSeverity() == EMessageSeverity::Error)
+				{
+					ErrorLines.Add(Text);
+					// Surface through unreal_get_compile_errors as well.
+					FUnrealEngineMCPErrorHandler::LogError(FString::Printf(TEXT("%s: %s"), *BP->GetName(), *Text));
+				}
 			}
 			Obj->SetArrayField(TEXT("messages"), Messages);
-			if (Log.NumErrors > 0) Obj->SetStringField(TEXT("error"), TEXT("Blueprint compilation reported errors"));
+			if (Log.NumErrors > 0)
+			{
+				Obj->SetStringField(TEXT("error"), ErrorLines.Num() > 0
+					? FString::Printf(TEXT("Blueprint compilation reported errors: %s"), *FString::Join(ErrorLines, TEXT(" | ")))
+					: FString(TEXT("Blueprint compilation reported errors")));
+			}
 			return Obj;
 		});
 		if (Result->HasField(TEXT("error")) && Result->GetNumberField(TEXT("errors")) > 0)
@@ -341,6 +355,15 @@ void FUnrealEngineMCPBlueprintTools::Register()
 			UEdGraphNode* NewNode = nullptr;
 			if (NodeType.Equals(TEXT("EventBeginPlay"), ESearchCase::IgnoreCase) || NodeType.Equals(TEXT("BeginPlay"), ESearchCase::IgnoreCase))
 			{
+				// New Actor Blueprints already contain a BeginPlay event; a second one is a
+				// compile error ("duplicate event"), so reuse the existing node.
+				if (UK2Node_Event* Existing = FBlueprintEditorUtils::FindOverrideForFunction(BP, AActor::StaticClass(), FName(TEXT("ReceiveBeginPlay"))))
+				{
+					Obj->SetStringField(TEXT("node"), Existing->GetName());
+					Obj->SetStringField(TEXT("class"), Existing->GetClass()->GetName());
+					Obj->SetBoolField(TEXT("existing"), true);
+					return Obj;
+				}
 				UK2Node_Event* EventNode = NewObject<UK2Node_Event>(Graph);
 				EventNode->EventReference.SetExternalMember(FName(TEXT("ReceiveBeginPlay")), AActor::StaticClass());
 				EventNode->bOverrideFunction = true;

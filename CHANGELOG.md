@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `unreal_rename_asset` now validates input and accepts `destination_path` as well as `new_name`
 - Workflow tools (`unreal_create_room`, `unreal_setup_lighting`, `unreal_setup_camera`, `unreal_build_scene`, `unreal_create_gameplay_prototype`) rejected their documented arguments because `**params` became a required `params` field; `params` is now optional and still overrides
 - `unreal_setup_camera` sent the wrong payload to `unreal_set_viewport_location` and never applied the rotation
+- `unreal_spawn_actor` crashed the editor (fatal "Cannot generate unique name") when the requested name was already in use, including by a just-deleted actor; the name is now a request and the label stays exact
+- `unreal_create_blueprint_node` with `BeginPlay` added a duplicate event to Blueprints that already had one, breaking compilation; it now reuses the existing node (`existing: true`)
+- `unreal_compile_blueprint` failures now include the compiler error messages, which are also returned by `unreal_get_compile_errors`
 - `unreal_capture_viewport` could report success without ever writing a file when the editor was backgrounded; it now forces a viewport draw and returns `file_written`
 
 ## [1.0.4] - 2026-11-20
