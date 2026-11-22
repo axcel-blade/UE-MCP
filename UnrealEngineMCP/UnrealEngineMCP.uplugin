@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
-	"Version": 1,
-	"VersionName": "1.0.4",
+	"Version": 2,
+	"VersionName": "1.1.0",
 	"FriendlyName": "UnrealEngineMCP",
 	"Description": "Model Context Protocol bridge for Unreal Engine 5 Editor automation",
 	"Category": "Editor",
@@ -29,6 +29,10 @@
 	"Plugins": [
 		{
 			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "PythonScriptPlugin",
 			"Enabled": true
 		}
 	]

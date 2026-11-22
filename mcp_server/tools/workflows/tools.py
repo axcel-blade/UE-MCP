@@ -10,6 +10,16 @@ if TYPE_CHECKING:
     from mcp_server.server import AppContext
 
 
+def _override(params: dict[str, Any] | None, **values: Any) -> list[Any]:
+    """Let a host-wrapped ``{"params": {...}}`` payload override typed arguments.
+
+    Typed workflow tools must not use ``**params``: FastMCP exposes that as a required
+    ``params`` field, which rejects calls that only pass the documented arguments.
+    """
+    p = params or {}
+    return [p.get(k, v) for k, v in values.items()]
+
+
 def register(mcp: FastMCP, ctx: AppContext) -> None:
     @mcp.tool(name="unreal_create_room")
     async def unreal_create_room(
@@ -18,9 +28,17 @@ def register(mcp: FastMCP, ctx: AppContext) -> None:
         height: float = 300.0,
         wall_thickness: float = 10.0,
         name_prefix: str = "MCP_Room",
-        **params: Any,
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a simple room using scaled cube actors."""
+        width, length, height, wall_thickness, name_prefix = _override(
+            params,
+            width=width,
+            length=length,
+            height=height,
+            wall_thickness=wall_thickness,
+            name_prefix=name_prefix,
+        )
         steps = []
         half_w, half_l, half_h = width / 2, length / 2, height / 2
         specs = [
@@ -87,9 +105,15 @@ def register(mcp: FastMCP, ctx: AppContext) -> None:
         include_sky: bool = True,
         include_fog: bool = False,
         directional_intensity: float = 10.0,
-        **params: Any,
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Set up a basic lighting environment."""
+        include_sky, include_fog, directional_intensity = _override(
+            params,
+            include_sky=include_sky,
+            include_fog=include_fog,
+            directional_intensity=directional_intensity,
+        )
         steps = []
         sun = await ctx.dispatcher.call(
             "unreal_create_directional_light",
@@ -124,9 +148,12 @@ def register(mcp: FastMCP, ctx: AppContext) -> None:
         name: str = "MCP_Camera",
         location: dict[str, float] | None = None,
         rotation: dict[str, float] | None = None,
-        **params: Any,
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create and configure a cinematic camera actor."""
+        name, location, rotation = _override(
+            params, name=name, location=location, rotation=rotation
+        )
         loc = location or {"x": 0, "y": -500, "z": 200}
         rot = rotation or {"pitch": -10, "yaw": 0, "roll": 0}
         spawn = await ctx.dispatcher.call(
@@ -137,16 +164,20 @@ def register(mcp: FastMCP, ctx: AppContext) -> None:
             return spawn
         view = await ctx.dispatcher.call(
             "unreal_set_viewport_location",
-            {"x": loc["x"], "y": loc["y"], "z": loc["z"]},
+            {"location": {"x": loc["x"], "y": loc["y"], "z": loc["z"]}},
         )
+        await ctx.dispatcher.call("unreal_set_viewport_rotation", {"rotation": rot})
         return {"success": True, "result": {"camera": name, "viewport": view}}
 
     @mcp.tool(name="unreal_build_scene")
     async def unreal_build_scene(
-        spec: dict[str, Any] | None = None, **params: Any
+        spec: dict[str, Any] | None = None,
+        specification: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build a scene from a structured specification of actors/lights."""
-        spec = spec or params.get("specification") or {}
+        p = params or {}
+        spec = spec or specification or p.get("spec") or p.get("specification") or {}
         steps = []
         for actor in spec.get("actors", []):
             steps.append(await ctx.dispatcher.call("unreal_spawn_actor", actor))
@@ -161,9 +192,12 @@ def register(mcp: FastMCP, ctx: AppContext) -> None:
     async def unreal_create_gameplay_prototype(
         blueprint_path: str = "/Game/MCP/BP_MCPPrototype",
         parent_class: str = "Actor",
-        **params: Any,
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a minimal Blueprint gameplay prototype scaffold."""
+        blueprint_path, parent_class = _override(
+            params, blueprint_path=blueprint_path, parent_class=parent_class
+        )
         created = await ctx.dispatcher.call(
             "unreal_create_blueprint",
             {"path": blueprint_path, "parent_class": parent_class},

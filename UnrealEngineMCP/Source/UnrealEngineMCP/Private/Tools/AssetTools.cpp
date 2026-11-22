@@ -110,7 +110,7 @@ void FUnrealEngineMCPAssetTools::Register()
 	Reg.Register(TEXT("unreal_import_asset"), FUnrealEngineMCPToolHandler::CreateLambda([](const FUnrealEngineMCPRequest& Req)
 	{
 		TSharedPtr<FJsonObject> Params = Req.Params;
-		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJson([Params]()
+		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJsonOnTicker([Params]()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			FString Source = Params->GetStringField(TEXT("source_path"));
@@ -147,7 +147,7 @@ void FUnrealEngineMCPAssetTools::Register()
 	Reg.Register(TEXT("unreal_reimport_asset"), FUnrealEngineMCPToolHandler::CreateLambda([](const FUnrealEngineMCPRequest& Req)
 	{
 		TSharedPtr<FJsonObject> Params = Req.Params;
-		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJson([Params]()
+		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJsonOnTicker([Params]()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			FString Path = Params->GetStringField(TEXT("path"));
@@ -185,9 +185,16 @@ void FUnrealEngineMCPAssetTools::Register()
 		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJson([Params]()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-			FString Source = Params->GetStringField(TEXT("source_path"));
-			FString NewName = Params->GetStringField(TEXT("new_name"));
-			FString DestPath = FPackageName::GetLongPackagePath(Source) / NewName;
+			FString Source, NewName, DestPath;
+			Params->TryGetStringField(TEXT("source_path"), Source);
+			Params->TryGetStringField(TEXT("new_name"), NewName);
+			Params->TryGetStringField(TEXT("destination_path"), DestPath);
+			if (Source.IsEmpty()) { Obj->SetStringField(TEXT("error"), TEXT("source_path is required")); return Obj; }
+			if (DestPath.IsEmpty())
+			{
+				if (NewName.IsEmpty()) { Obj->SetStringField(TEXT("error"), TEXT("new_name or destination_path is required")); return Obj; }
+				DestPath = FPackageName::GetLongPackagePath(Source) / NewName;
+			}
 			const bool bOk = UEditorAssetLibrary::RenameAsset(Source, DestPath);
 			Obj->SetBoolField(TEXT("renamed"), bOk);
 			Obj->SetStringField(TEXT("path"), DestPath);
@@ -298,7 +305,7 @@ void FUnrealEngineMCPAssetTools::Register()
 			Params->SetStringField(TEXT("destination_path"), TEXT("/Game/Imported/Blender"));
 		}
 		// Reuse import pipeline
-		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJson([Params]()
+		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJsonOnTicker([Params]()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			FString Source = Params->GetStringField(TEXT("source_path"));
@@ -357,7 +364,7 @@ void FUnrealEngineMCPAssetTools::Register()
 	Reg.Register(TEXT("unreal_reimport_blender_asset"), FUnrealEngineMCPToolHandler::CreateLambda([](const FUnrealEngineMCPRequest& Req)
 	{
 		TSharedPtr<FJsonObject> Params = Req.Params;
-		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJson([Params]()
+		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJsonOnTicker([Params]()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			FString Path = Params->GetStringField(TEXT("path"));

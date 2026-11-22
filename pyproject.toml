@@ -1,6 +1,6 @@
 [project]
 name = "unreal-engine-mcp"
-version = "1.0.4"
+version = "1.1.0"
 description = "Production Unreal Engine 5 Model Context Protocol (MCP) server and editor plugin"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -11,6 +11,7 @@ dependencies = [
     "mcp>=1.6.0,<2",
     "pydantic>=2.6.0",
     "pydantic-settings>=2.2.0",
+    "httpx>=0.27.0",
 ]
 
 [dependency-groups]

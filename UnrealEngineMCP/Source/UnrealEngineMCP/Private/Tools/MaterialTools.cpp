@@ -99,22 +99,54 @@ void FUnrealEngineMCPMaterialTools::Register()
 			UMaterialInstanceConstant* MIC=LoadObject<UMaterialInstanceConstant>(nullptr,*Params->GetStringField(TEXT("path")));
 			if(!MIC){Obj->SetStringField(TEXT("error"),TEXT("Material instance not found")); return Obj;}
 			FString Name=Params->GetStringField(TEXT("name"));
-			FString Type=Params->HasField(TEXT("type"))?Params->GetStringField(TEXT("type")):TEXT("scalar");
+			// Infer the type when omitted: colour-like input means a vector parameter.
+			FString Type;
+			if(!Params->TryGetStringField(TEXT("type"),Type) || Type.IsEmpty())
+			{
+				const bool bColorish = Params->HasField(TEXT("r")) || Params->HasTypedField<EJson::Object>(TEXT("value")) || Params->HasTypedField<EJson::Array>(TEXT("value"));
+				Type = bColorish ? TEXT("vector") : TEXT("scalar");
+			}
+			if(Name.IsEmpty()){Obj->SetStringField(TEXT("error"),TEXT("name is required")); return Obj;}
+			const FHashedMaterialParameterInfo Info{FName(*Name)};
 			if(Type.Equals(TEXT("scalar"), ESearchCase::IgnoreCase))
 			{
-				MIC->SetScalarParameterValueEditorOnly(FName(*Name), Params->GetNumberField(TEXT("value")));
+				float Existing=0.f;
+				if(!MIC->GetScalarParameterValue(Info, Existing)){Obj->SetStringField(TEXT("error"),FString::Printf(TEXT("Scalar parameter '%s' not found on material"),*Name)); return Obj;}
+				double Value=0.0;
+				if(!Params->TryGetNumberField(TEXT("value"),Value)){Obj->SetStringField(TEXT("error"),TEXT("value (number) is required for scalar parameters")); return Obj;}
+				MIC->SetScalarParameterValueEditorOnly(FName(*Name), Value);
+				Obj->SetNumberField(TEXT("value"), Value);
 			}
 			else
 			{
+				FLinearColor Existing;
+				if(!MIC->GetVectorParameterValue(Info, Existing)){Obj->SetStringField(TEXT("error"),FString::Printf(TEXT("Vector parameter '%s' not found on material"),*Name)); return Obj;}
+				// Accept value:{r,g,b,a}, value:[r,g,b,a], or top-level r/g/b/a. Previously
+				// anything but the nested object silently became white.
+				TSharedPtr<FJsonObject> Src=Params;
+				const TSharedPtr<FJsonObject>* Nested=nullptr;
+				const TArray<TSharedPtr<FJsonValue>>* Arr=nullptr;
 				FLinearColor Color(1,1,1,1);
-				if(Params->HasTypedField<EJson::Object>(TEXT("value")))
+				if(Params->TryGetObjectField(TEXT("value"),Nested)) Src=*Nested;
+				if(Params->TryGetArrayField(TEXT("value"),Arr) && Arr->Num()>=3)
 				{
-					auto V=Params->GetObjectField(TEXT("value"));
-					Color.R=V->GetNumberField(TEXT("r")); Color.G=V->GetNumberField(TEXT("g")); Color.B=V->GetNumberField(TEXT("b"));
-					if(V->HasField(TEXT("a"))) Color.A=V->GetNumberField(TEXT("a"));
+					Color.R=(*Arr)[0]->AsNumber(); Color.G=(*Arr)[1]->AsNumber(); Color.B=(*Arr)[2]->AsNumber();
+					if(Arr->Num()>3) Color.A=(*Arr)[3]->AsNumber();
+				}
+				else
+				{
+					double R,G,B;
+					if(!Src->TryGetNumberField(TEXT("r"),R)||!Src->TryGetNumberField(TEXT("g"),G)||!Src->TryGetNumberField(TEXT("b"),B))
+					{Obj->SetStringField(TEXT("error"),TEXT("vector parameters need r, g, b (top-level, or in value as an object or array)")); return Obj;}
+					Color=FLinearColor(R,G,B,1);
+					double Alpha; if(Src->TryGetNumberField(TEXT("a"),Alpha)) Color.A=Alpha;
 				}
 				MIC->SetVectorParameterValueEditorOnly(FName(*Name), Color);
+				TSharedPtr<FJsonObject> C=MakeShared<FJsonObject>();
+				C->SetNumberField(TEXT("r"),Color.R); C->SetNumberField(TEXT("g"),Color.G); C->SetNumberField(TEXT("b"),Color.B); C->SetNumberField(TEXT("a"),Color.A);
+				Obj->SetObjectField(TEXT("value"),C);
 			}
+			MIC->PostEditChange();
 			MIC->MarkPackageDirty();
 			Obj->SetBoolField(TEXT("updated"), true);
 			return Obj;

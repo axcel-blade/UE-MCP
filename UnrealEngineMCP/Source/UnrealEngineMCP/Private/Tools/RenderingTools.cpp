@@ -13,6 +13,8 @@
 #include "HAL/PlatformFileManager.h"
 #include "HighResScreenshot.h"
 #include "UnrealClient.h"
+#include "ImageUtils.h"
+#include "Misc/Base64.h"
 
 namespace
 {
@@ -37,7 +39,22 @@ void FUnrealEngineMCPRenderingTools::Register()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			FViewport* Viewport = GEditor ? GEditor->GetActiveViewport() : nullptr;
-			if (!Viewport) { Obj->SetStringField(TEXT("error"), TEXT("No active viewport")); return Obj; }
+			FEditorViewportClient* Client = Viewport ? static_cast<FEditorViewportClient*>(Viewport->GetClient()) : nullptr;
+			// After a level load no viewport may have focus; fall back to the level
+			// viewport the user is most likely looking at.
+			if (!Viewport && GEditor)
+			{
+				FLevelEditorViewportClient* LevelClient = GCurrentLevelEditingViewportClient;
+				if (!LevelClient)
+				{
+					for (FLevelEditorViewportClient* C : GEditor->GetLevelViewportClients())
+					{
+						if (C && C->Viewport && C->IsPerspective()) { LevelClient = C; break; }
+					}
+				}
+				if (LevelClient) { Viewport = LevelClient->Viewport; Client = LevelClient; }
+			}
+			if (!Viewport) { Obj->SetStringField(TEXT("error"), TEXT("No editor viewport is open")); return Obj; }
 
 			const UUnrealEngineMCPSettings* Settings = GetDefault<UUnrealEngineMCPSettings>();
 			FString Dir = Settings && !Settings->ScreenshotDirectory.IsEmpty()
@@ -59,10 +76,66 @@ void FUnrealEngineMCPRenderingTools::Register()
 			}
 			FString FullPath = FPaths::ConvertRelativePathToFull(Dir / Filename);
 
+			// Optional view mode for this capture only (lit, unlit, wireframe, ...).
+			FString ViewModeName;
+			const bool bSwapMode = Client && Params.IsValid() && Params->TryGetStringField(TEXT("view_mode"), ViewModeName) && !ViewModeName.IsEmpty();
+			const EViewModeIndex OldMode = Client ? Client->GetViewMode() : VMI_Lit;
+			if (bSwapMode)
+			{
+				static const TMap<FString, EViewModeIndex> Modes = {
+					{TEXT("lit"), VMI_Lit}, {TEXT("unlit"), VMI_Unlit}, {TEXT("wireframe"), VMI_BrushWireframe},
+					{TEXT("detail_lighting"), VMI_Lit_DetailLighting}, {TEXT("lighting_only"), VMI_LightingOnly},
+					{TEXT("collision"), VMI_CollisionVisibility}};
+				const EViewModeIndex* Mode = Modes.Find(ViewModeName.ToLower());
+				if (!Mode) { Obj->SetStringField(TEXT("error"), FString::Printf(TEXT("Unknown view_mode '%s'"), *ViewModeName)); return Obj; }
+				Client->SetViewMode(*Mode);
+			}
 			FScreenshotRequest::RequestScreenshot(FullPath, false, false);
+			// The request is only serviced on the next viewport draw. A backgrounded
+			// editor throttles redraws, so the file may never appear; draw now.
+			Viewport->Invalidate();
+			Viewport->Draw();
+			if (bSwapMode)
+			{
+				Client->SetViewMode(OldMode);
+				Viewport->Invalidate();
+			}
 			Obj->SetStringField(TEXT("path"), FullPath);
 			Obj->SetBoolField(TEXT("requested"), true);
-			Obj->SetStringField(TEXT("note"), TEXT("Screenshot requested asynchronously; file appears after next viewport draw."));
+			const bool bWritten = IFileManager::Get().FileExists(*FullPath);
+			Obj->SetBoolField(TEXT("file_written"), bWritten);
+			// Optional: return a downscaled PNG inline so MCP clients can see the result.
+			double MaxSize = 0;
+			if (bWritten && Params.IsValid() && Params->TryGetNumberField(TEXT("max_size"), MaxSize) && MaxSize >= 64)
+			{
+				TArray<uint8> Png;
+				IImageWrapperModule& IWM = FModuleManager::LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
+				TSharedPtr<IImageWrapper> Reader = IWM.CreateImageWrapper(EImageFormat::PNG);
+				TArray<uint8> Raw;
+				if (FFileHelper::LoadFileToArray(Png, *FullPath) && Reader.IsValid()
+					&& Reader->SetCompressed(Png.GetData(), Png.Num())
+					&& Reader->GetRaw(ERGBFormat::BGRA, 8, Raw))
+				{
+					const int32 W = Reader->GetWidth(), H = Reader->GetHeight();
+					const float Scale = FMath::Min(1.f, static_cast<float>(MaxSize) / FMath::Max(W, H));
+					const int32 NW = FMath::Max(1, FMath::RoundToInt(W * Scale)), NH = FMath::Max(1, FMath::RoundToInt(H * Scale));
+					TArray<FColor> Src; Src.SetNumUninitialized(W * H);
+					FMemory::Memcpy(Src.GetData(), Raw.GetData(), W * H * sizeof(FColor));
+					TArray<FColor> Dst;
+					if (NW != W || NH != H) { Dst.SetNumUninitialized(NW * NH); FImageUtils::ImageResize(W, H, Src, NW, NH, Dst, false); }
+					else { Dst = MoveTemp(Src); }
+					TSharedPtr<IImageWrapper> Writer = IWM.CreateImageWrapper(EImageFormat::PNG);
+					if (Writer.IsValid() && Writer->SetRaw(Dst.GetData(), Dst.Num() * sizeof(FColor), NW, NH, ERGBFormat::BGRA, 8))
+					{
+						const TArray64<uint8>& Out = Writer->GetCompressed();
+						Obj->SetStringField(TEXT("image_base64"), FBase64::Encode(Out.GetData(), static_cast<uint32>(Out.Num())));
+						Obj->SetStringField(TEXT("mime_type"), TEXT("image/png"));
+						Obj->SetNumberField(TEXT("width"), NW);
+						Obj->SetNumberField(TEXT("height"), NH);
+					}
+				}
+			}
+			Obj->SetStringField(TEXT("note"), TEXT("If file_written is false, the file appears after the next viewport draw."));
 			return Obj;
 		});
 		if (Result->HasField(TEXT("error"))) return Fail(Req, TEXT("engine_error"), Result->GetStringField(TEXT("error")));

@@ -7,6 +7,7 @@
 #include "Factories/BlueprintFactory.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Core/ErrorHandler.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraph/EdGraph.h"
@@ -53,7 +54,8 @@ void FUnrealEngineMCPBlueprintTools::Register()
 			{
 				UClass* Found = FindObject<UClass>(nullptr, *FString::Printf(TEXT("/Script/Engine.%s"), *ParentName));
 				if (!Found) Found = LoadObject<UClass>(nullptr, *ParentName);
-				if (Found) Parent = Found;
+				if (!Found) { Obj->SetStringField(TEXT("error"), FString::Printf(TEXT("Parent class '%s' not found"), *ParentName)); return Obj; }
+				Parent = Found;
 			}
 			UBlueprintFactory* Factory = NewObject<UBlueprintFactory>();
 			Factory->ParentClass = Parent;
@@ -106,12 +108,25 @@ void FUnrealEngineMCPBlueprintTools::Register()
 			Obj->SetNumberField(TEXT("errors"), Log.NumErrors);
 			Obj->SetNumberField(TEXT("warnings"), Log.NumWarnings);
 			TArray<TSharedPtr<FJsonValue>> Messages;
+			TArray<FString> ErrorLines;
 			for (TSharedRef<FTokenizedMessage>& Msg : Log.Messages)
 			{
-				Messages.Add(MakeShared<FJsonValueString>(Msg->ToText().ToString()));
+				const FString Text = Msg->ToText().ToString();
+				Messages.Add(MakeShared<FJsonValueString>(Text));
+				if (Msg->GetSeverity() == EMessageSeverity::Error)
+				{
+					ErrorLines.Add(Text);
+					// Surface through unreal_get_compile_errors as well.
+					FUnrealEngineMCPErrorHandler::LogError(FString::Printf(TEXT("%s: %s"), *BP->GetName(), *Text));
+				}
 			}
 			Obj->SetArrayField(TEXT("messages"), Messages);
-			if (Log.NumErrors > 0) Obj->SetStringField(TEXT("error"), TEXT("Blueprint compilation reported errors"));
+			if (Log.NumErrors > 0)
+			{
+				Obj->SetStringField(TEXT("error"), ErrorLines.Num() > 0
+					? FString::Printf(TEXT("Blueprint compilation reported errors: %s"), *FString::Join(ErrorLines, TEXT(" | ")))
+					: FString(TEXT("Blueprint compilation reported errors")));
+			}
 			return Obj;
 		});
 		if (Result->HasField(TEXT("error")) && Result->GetNumberField(TEXT("errors")) > 0)
@@ -168,12 +183,22 @@ void FUnrealEngineMCPBlueprintTools::Register()
 			if (!BP) { Obj->SetStringField(TEXT("error"), TEXT("Blueprint not found")); return Obj; }
 			FString VarName = Params->GetStringField(TEXT("variable_name"));
 			FString TypeName = Params->HasField(TEXT("type")) ? Params->GetStringField(TEXT("type")) : TEXT("bool");
+			if (VarName.IsEmpty()) { Obj->SetStringField(TEXT("error"), TEXT("variable_name is required")); return Obj; }
 			FEdGraphPinType PinType;
 			PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
-			if (TypeName.Equals(TEXT("int"), ESearchCase::IgnoreCase) || TypeName.Equals(TEXT("int32"), ESearchCase::IgnoreCase))
+			if (TypeName.Equals(TEXT("bool"), ESearchCase::IgnoreCase) || TypeName.Equals(TEXT("boolean"), ESearchCase::IgnoreCase))
+				PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
+			else if (TypeName.Equals(TEXT("int"), ESearchCase::IgnoreCase) || TypeName.Equals(TEXT("int32"), ESearchCase::IgnoreCase))
 				PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
 			else if (TypeName.Equals(TEXT("float"), ESearchCase::IgnoreCase) || TypeName.Equals(TEXT("double"), ESearchCase::IgnoreCase))
+			{
+				// UE5 real pins need a float/double subcategory; a bare PC_Real trips
+				// checkNoEntry() in the Kismet compiler and crashes the editor.
 				PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+				PinType.PinSubCategory = TypeName.Equals(TEXT("float"), ESearchCase::IgnoreCase)
+					? UEdGraphSchema_K2::PC_Float
+					: UEdGraphSchema_K2::PC_Double;
+			}
 			else if (TypeName.Equals(TEXT("string"), ESearchCase::IgnoreCase))
 				PinType.PinCategory = UEdGraphSchema_K2::PC_String;
 			else if (TypeName.Equals(TEXT("name"), ESearchCase::IgnoreCase))
@@ -183,7 +208,16 @@ void FUnrealEngineMCPBlueprintTools::Register()
 				PinType.PinCategory = UEdGraphSchema_K2::PC_Struct;
 				PinType.PinSubCategoryObject = TBaseStructure<FVector>::Get();
 			}
-			FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType);
+			else
+			{
+				Obj->SetStringField(TEXT("error"), FString::Printf(TEXT("Unsupported variable type '%s' (use bool, int, float, double, string, name, vector)"), *TypeName));
+				return Obj;
+			}
+			if (!FBlueprintEditorUtils::AddMemberVariable(BP, FName(*VarName), PinType))
+			{
+				Obj->SetStringField(TEXT("error"), FString::Printf(TEXT("Could not add variable '%s' (name may already be in use)"), *VarName));
+				return Obj;
+			}
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 			Obj->SetStringField(TEXT("variable"), VarName);
 			Obj->SetStringField(TEXT("type"), TypeName);
@@ -321,6 +355,15 @@ void FUnrealEngineMCPBlueprintTools::Register()
 			UEdGraphNode* NewNode = nullptr;
 			if (NodeType.Equals(TEXT("EventBeginPlay"), ESearchCase::IgnoreCase) || NodeType.Equals(TEXT("BeginPlay"), ESearchCase::IgnoreCase))
 			{
+				// New Actor Blueprints already contain a BeginPlay event; a second one is a
+				// compile error ("duplicate event"), so reuse the existing node.
+				if (UK2Node_Event* Existing = FBlueprintEditorUtils::FindOverrideForFunction(BP, AActor::StaticClass(), FName(TEXT("ReceiveBeginPlay"))))
+				{
+					Obj->SetStringField(TEXT("node"), Existing->GetName());
+					Obj->SetStringField(TEXT("class"), Existing->GetClass()->GetName());
+					Obj->SetBoolField(TEXT("existing"), true);
+					return Obj;
+				}
 				UK2Node_Event* EventNode = NewObject<UK2Node_Event>(Graph);
 				EventNode->EventReference.SetExternalMember(FName(TEXT("ReceiveBeginPlay")), AActor::StaticClass());
 				EventNode->bOverrideFunction = true;
@@ -499,7 +542,10 @@ void FUnrealEngineMCPBlueprintTools::Register()
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
 			UBlueprint* BP = LoadBP(Params->GetStringField(TEXT("path")));
 			if (!BP) { Obj->SetStringField(TEXT("error"), TEXT("Blueprint not found")); return Obj; }
-			FString FuncName = Params->GetStringField(TEXT("function_name"));
+			FString FuncName;
+			if (!Params->TryGetStringField(TEXT("function_name"), FuncName)) Params->TryGetStringField(TEXT("name"), FuncName);
+			if (FuncName.IsEmpty()) { Obj->SetStringField(TEXT("error"), TEXT("function_name is required")); return Obj; }
+			if (FindObject<UEdGraph>(BP, *FuncName)) { Obj->SetStringField(TEXT("error"), FString::Printf(TEXT("A graph named '%s' already exists"), *FuncName)); return Obj; }
 			UEdGraph* Graph = FBlueprintEditorUtils::CreateNewGraph(BP, FName(*FuncName), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
 			FBlueprintEditorUtils::AddFunctionGraph<UFunction>(BP, Graph, false, nullptr);
 			Obj->SetStringField(TEXT("function"), FuncName);
