@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `unreal_spawn_actor` crashed the editor (fatal "Cannot generate unique name") when the requested name was already in use, including by a just-deleted actor; the name is now a request and the label stays exact
 - `unreal_create_blueprint_node` with `BeginPlay` added a duplicate event to Blueprints that already had one, breaking compilation; it now reuses the existing node (`existing: true`)
 - `unreal_compile_blueprint` failures now include the compiler error messages, which are also returned by `unreal_get_compile_errors`
+- `unreal_set_material_parameter` silently set vector parameters to white unless the colour was nested as `value: {r,g,b}`, and reported success for parameters that don't exist; it now accepts top-level `r/g/b/a`, `value` as an object or array, validates the parameter name and value, echoes the applied value, and refreshes the instance
 - `unreal_capture_viewport` could report success without ever writing a file when the editor was backgrounded; it now forces a viewport draw and returns `file_written`
 
 ## [1.0.4] - 2026-11-20
