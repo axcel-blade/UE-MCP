@@ -171,3 +171,21 @@ def test_provider_requires_keys() -> None:
     with pytest.raises(providers.ProviderError):
         providers._require(cfg, "sketchfab")
     providers._require(cfg, "polyhaven")
+
+
+def test_industry_tools_expose_rerun_and_physics_options() -> None:
+    from mcp.server.fastmcp import FastMCP
+    from mcp_server.tools.industries import tools as industries
+
+    mcp = FastMCP("t")
+    industries.register(mcp, _ctx())
+    schemas = {t.name: t.inputSchema["properties"] for t in asyncio.run(mcp.list_tools())}
+    for name in (
+        "unreal_create_game_mode",
+        "unreal_create_input_action",
+        "unreal_create_cinematic",
+        "unreal_create_lighting_cue",
+        "unreal_create_turntable",
+    ):
+        assert schemas[name]["overwrite"]["default"] is False
+    assert schemas["unreal_create_conveyor"]["friction"]["default"] == 0.1

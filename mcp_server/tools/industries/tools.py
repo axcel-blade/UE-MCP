@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from mcp_server.core.python_exec import run_python
 from mcp_server.core.response import fail, ok
+from mcp_server.exceptions import UnrealEngineMCPError
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
@@ -101,8 +102,12 @@ def split(path):
 def new_asset(path, cls, factory):
     folder, name = split(path)
     ensure_dir(folder)
-    if EAL.does_asset_exist(folder + "/" + name):
-        raise ValueError("Asset already exists: %s/%s" % (folder, name))
+    full = folder + "/" + name
+    if EAL.does_asset_exist(full):
+        if not ARGS.get("overwrite"):
+            raise ValueError("Asset already exists: %s (pass overwrite=true to replace it)" % full)
+        if not EAL.delete_asset(full):
+            raise RuntimeError("Could not replace %s; close any editor that has it open" % full)
     return AT.create_asset(name, folder, cls, factory)
 
 def loc_list(a):
@@ -156,10 +161,11 @@ def register(mcp: FastMCP, ctx: AppContext) -> None:
         default_pawn_class: str = "",
         player_controller_class: str = "",
         set_as_world_default: bool = True,
+        overwrite: bool = False,
     ) -> dict[str, Any]:
         """Create a GameModeBase Blueprint, optionally set its default pawn / player
         controller (class paths like "/Script/Engine.DefaultPawn" or
-        "/Game/BP_Hero.BP_Hero_C"), and make it this level's game mode override."""
+        "/Game/BP_Hero.BP_Hero_C"), and make it this level's game mode override. ``overwrite`` replaces an existing asset at the same path."""
         return await run(
             """
 f = unreal.BlueprintFactory()
@@ -183,6 +189,7 @@ result = {"game_mode": bp.get_path_name(), "pawn": pawn.get_name() if pawn else 
             default_pawn_class=default_pawn_class,
             player_controller_class=player_controller_class,
             set_as_world_default=set_as_world_default,
+            overwrite=overwrite,
             _undo="Create game mode",
         )
 
@@ -271,10 +278,11 @@ result = {"label": a.get_actor_label(), "extent": [ext.x, ext.y, ext.z]}
         value_type: str = "bool",
         folder: str = "/Game/Input",
         mapping_context: str = "IMC_Default",
+        overwrite: bool = False,
     ) -> dict[str, Any]:
         """Create an Enhanced Input action (``value_type``: bool, axis1d, axis2d,
         axis3d) and map it to ``key`` (e.g. "SpaceBar", "W", "Gamepad_FaceButton_Bottom")
-        in a mapping context (created if missing)."""
+        in a mapping context (created if missing). ``overwrite`` replaces an existing asset at the same path."""
         return await run(
             """
 if not has("InputAction"):
@@ -287,22 +295,42 @@ ctx_path = ARGS["folder"] + "/" + ARGS["mapping_context"]
 imc = unreal.load_asset(ctx_path) if EAL.does_asset_exist(ctx_path) else new_asset(
     ctx_path, unreal.InputMappingContext, unreal.InputMappingContext_Factory())
 k = unreal.Key(); k.set_editor_property("key_name", ARGS["key"])
-imc.map_key(ia, k)
-def mapping_count(ctx_asset):
+def get_mappings(ctx_asset):
     # UE 5.6+ keeps mappings in default_key_mappings; older versions use mappings.
     try:
-        return len(ctx_asset.get_editor_property("default_key_mappings").get_editor_property("mappings"))
+        return list(ctx_asset.get_editor_property("default_key_mappings").get_editor_property("mappings"))
     except Exception:
-        return len(ctx_asset.get_editor_property("mappings"))
+        return list(ctx_asset.get_editor_property("mappings"))
+def set_mappings(ctx_asset, maps):
+    try:
+        dkm = ctx_asset.get_editor_property("default_key_mappings")
+        dkm.set_editor_property("mappings", maps)
+        ctx_asset.set_editor_property("default_key_mappings", dkm)
+    except Exception:
+        ctx_asset.set_editor_property("mappings", maps)
+def keep(m):
+    act = m.get_editor_property("action")
+    if act is None:  # left behind by a deleted/overwritten action
+        return False
+    return not (act.get_name() == ARGS["name"] and
+                str(m.get_editor_property("key").get_editor_property("key_name")) == ARGS["key"])
+old_maps = get_mappings(imc)
+kept = [m for m in old_maps if keep(m)]
+if len(kept) != len(old_maps):
+    set_mappings(imc, kept)
+imc.map_key(ia, k)
+def mapping_count(ctx_asset):
+    return len(get_mappings(ctx_asset))
 EAL.save_loaded_asset(ia); EAL.save_loaded_asset(imc)
 result = {"action": ia.get_path_name(), "mapping_context": imc.get_path_name(), "key": ARGS["key"],
-          "mappings": mapping_count(imc)}
+          "mappings": mapping_count(imc), "removed_stale": len(old_maps) - len(kept)}
 """,
             name=name,
             key=key,
             value_type=value_type,
             folder=folder,
             mapping_context=mapping_context,
+            overwrite=overwrite,
             _undo="Create input action",
         )
 
@@ -371,11 +399,12 @@ result = {"was_playing": playing}
         focal_length: float = 35.0,
         aperture: float = 2.8,
         look_at: str = "",
+        overwrite: bool = False,
     ) -> dict[str, Any]:
         """Create a Level Sequence with a CineCameraActor, a camera cut, and a
         keyframed camera move from ``start`` to ``end`` ({"location": {x,y,z},
         "rotation": {pitch,yaw,roll}}). ``look_at`` aims both keys at an actor and
-        focuses on it. Render it with ``unreal_render_sequence_mrq``."""
+        focuses on it. Render it with ``unreal_render_sequence_mrq``. ``overwrite`` replaces an existing asset at the same path."""
         return await run(
             """
 target = find(ARGS["look_at"]) if ARGS["look_at"] else None
@@ -426,6 +455,7 @@ result = {"sequence": seq.get_path_name(), "camera": cam.get_actor_label(), "fra
             focal_length=focal_length,
             aperture=aperture,
             look_at=look_at,
+            overwrite=overwrite,
             _undo="Create cinematic",
         )
 
@@ -693,7 +723,9 @@ if ARGS["ceiling"]:
     ce = spawn_mesh(ARGS["label"] + "_Ceiling", "cylinder", (c.x, c.y, c.z + h + 20), None, (r / 50.0, r / 50.0, 0.1))
     ce.attach_to_actor(root, "", unreal.AttachmentRule.KEEP_WORLD, unreal.AttachmentRule.KEEP_WORLD, unreal.AttachmentRule.KEEP_WORLD, False)
 cam = spawn(unreal.CineCameraActor, ARGS["label"] + "_TrackedCamera", (c.x - r * 0.4, c.y, c.z + 170), (0, 0, 0))
-result = {"root": root.get_actor_label(), "panels": len(panels), "panel_width_cm": round(seg_w, 1),
+for _x in SPAWNED:
+    _x.set_folder_path(ARGS["label"])
+result ={"root": root.get_actor_label(), "panels": len(panels), "panel_width_cm": round(seg_w, 1),
           "camera": cam.get_actor_label()}
 """,
             radius=radius,
@@ -711,10 +743,11 @@ result = {"root": root.get_actor_label(), "panels": len(panels), "panel_width_cm
         path: str,
         cues: list[dict[str, Any]],
         fps: int = 30,
+        overwrite: bool = False,
     ) -> dict[str, Any]:
         """Create a show-control Level Sequence that animates lights. ``cues``:
         [{"light": "Label", "time": seconds, "intensity": 5000, "color": {r,g,b}}].
-        Play it in the editor, in PIE, or trigger it from Blueprints at runtime."""
+        Play it in the editor, in PIE, or trigger it from Blueprints at runtime. ``overwrite`` replaces an existing asset at the same path."""
         return await run(
             """
 for c in ARGS["cues"]:
@@ -755,6 +788,7 @@ result = {"sequence": seq.get_path_name(), "lights": list(tracks), "cues": len(A
             path=path,
             cues=cues,
             fps=fps,
+            overwrite=overwrite,
             _undo="Create lighting cue",
         )
 
@@ -789,7 +823,9 @@ for rr in range(rows):
         names.append(p.get_actor_label())
 frame = spawn_mesh(ARGS["label"] + "_Frame", "cube", (o.x - 10 * math.cos(yaw), o.y - 10 * math.sin(yaw), o.z + th / 2),
                    (0, ARGS["yaw"], 0), (0.1, (tw + 40) / 100.0, (th + 40) / 100.0))
-result = {"screens": len(names), "size_cm": [round(tw, 1), round(th, 1)], "frame": frame.get_actor_label()}
+for _x in SPAWNED:
+    _x.set_folder_path(ARGS["label"])
+result ={"screens": len(names), "size_cm": [round(tw, 1), round(th, 1)], "frame": frame.get_actor_label()}
 """,
             label=label,
             location=location,
@@ -936,11 +972,12 @@ result = {"parts": len(parts), "lights": ["Key", "Fill", "Rim", "SkyLight"], "ma
         sequence_path: str = "/Game/Cinematics/SEQ_Turntable",
         platform: bool = True,
         camera_distance: float = 0.0,
+        overwrite: bool = False,
     ) -> dict[str, Any]:
         """Product turntable: put ``target`` on a rotating platform, animate one full
         rotation over ``seconds`` in a Level Sequence, and frame it with a CineCamera
         (distance auto-fits the product's bounds when 0). Render with
-        ``unreal_render_sequence_mrq``."""
+        ``unreal_render_sequence_mrq``. ``overwrite`` replaces an existing asset at the same path."""
         return await run(
             """
 t = find(ARGS["target"])
@@ -983,6 +1020,7 @@ result = {"sequence": seq.get_path_name(), "pivot": pivot.get_actor_label(), "ca
             seq=sequence_path,
             platform=platform,
             camera_distance=camera_distance,
+            overwrite=overwrite,
             _undo="Create turntable",
         )
 
@@ -1007,6 +1045,9 @@ ensure_dir(folder)
 lvs = unreal.load_asset(folder + "/" + name) if EAL.does_asset_exist(folder + "/" + name) else \\
     unreal.VariantManagerLibrary.create_level_variant_sets_asset(name, folder)
 a = find(ARGS["actor"])
+replaced = lvs.get_variant_set_by_name(ARGS["set_name"]) is not None
+if replaced:  # re-running replaces the set instead of adding "Paint0", "Paint1", ...
+    unreal.VariantManagerLibrary.remove_variant_set_by_name(lvs, ARGS["set_name"])
 vs = unreal.VariantSet(); vs.set_display_text(ARGS["set_name"])
 unreal.VariantManagerLibrary.add_variant_set(lvs, vs)
 made = []
@@ -1044,7 +1085,7 @@ for x in EAS.get_all_level_actors():
 if lva is None:
     lva = unreal.VariantManagerLibrary.create_level_variant_sets_actor(lvs)
 EAL.save_loaded_asset(lvs)
-result = {"asset": lvs.get_path_name(), "set": ARGS["set_name"], "variants": made,
+result = {"asset": lvs.get_path_name(), "set": ARGS["set_name"], "replaced": replaced, "variants": made,
           "actor": lva.get_actor_label() if lva else None}
 """,
             asset=asset_path,
@@ -1157,21 +1198,45 @@ result = {"created": len(created), "updated": len(updated), "labels": (created +
         part_size: float = 40.0,
         part_mass: float = 5.0,
         slope_degrees: float = 0.0,
+        friction: float = 0.1,
     ) -> dict[str, Any]:
         """Manufacturing line block-out: a conveyor bed with side rails and legs, plus
-        ``parts`` physics-enabled boxes spaced along it. Tilt with ``slope_degrees`` so
-        parts slide under gravity in ``unreal_run_simulation``."""
+        ``parts`` physics-enabled boxes spaced along it. ``length`` is measured along the
+        belt. Tilt with ``slope_degrees`` so parts slide under gravity in
+        ``unreal_run_simulation``; they slide when tan(slope) exceeds ``friction``
+        (bed surface friction, applied through a physical material)."""
         return await run(
             """
 s = V(ARGS["start"], (0, 0, 80)); L = float(ARGS["length"]); W = float(ARGS["width"])
 yaw = float(ARGS["yaw"]); sl = float(ARGS["slope_degrees"])
-dx, dy = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
-dz = -math.tan(math.radians(sl))
+if not 0 <= sl < 80:
+    raise ValueError("slope_degrees must be between 0 and 80")
+# ``length`` is measured along the belt; (dx, dy, dz) is the unit belt direction.
+ch = math.cos(math.radians(sl))
+dx, dy = math.cos(math.radians(yaw)) * ch, math.sin(math.radians(yaw)) * ch
+dz = -math.sin(math.radians(sl))
+if s.z + dz * L < 1:
+    raise ValueError("Low end would be at z=%.0f (below ground). Raise start.z to at least %.0f, "
+                     "shorten length or reduce slope_degrees" % (s.z + dz * L, 1 - dz * L))
 mid = unreal.Vector(s.x + dx * L / 2, s.y + dy * L / 2, s.z + dz * L / 2)
 bed = spawn_mesh(ARGS["label"] + "_Bed", "cube", mid, (-sl, yaw, 0), (L / 100.0, W / 100.0, 0.1))
+fr = max(0.0, float(ARGS["friction"]))
+pm_path = "/Game/MCP/Physics/PM_Conveyor_%03d" % int(round(fr * 100))
+if EAL.does_asset_exist(pm_path):
+    pm = unreal.load_asset(pm_path)
+else:
+    ensure_dir("/Game/MCP/Physics")
+    pm = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+        pm_path.rsplit("/", 1)[1], "/Game/MCP/Physics", unreal.PhysicalMaterial, unreal.PhysicalMaterialFactoryNew())
+    pm.set_editor_property("friction", fr)
+    pm.set_editor_property("static_friction", fr)
+    pm.set_editor_property("friction_combine_mode", unreal.FrictionCombineMode.MIN)
+    pm.set_editor_property("override_friction_combine_mode", True)
+    EAL.save_loaded_asset(pm)
+bed.static_mesh_component.set_phys_material_override(pm)
 names = [bed.get_actor_label()]
 for side in (-1, 1):
-    ox, oy = -dy * side * (W / 2 + 5), dx * side * (W / 2 + 5)
+    ox, oy = -dy / ch * side * (W / 2 + 5), dx / ch * side * (W / 2 + 5)
     rail = spawn_mesh("%s_Rail_%s" % (ARGS["label"], "L" if side < 0 else "R"), "cube",
                       (mid.x + ox, mid.y + oy, mid.z + 15), (-sl, yaw, 0), (L / 100.0, 0.1, 0.3))
     names.append(rail.get_actor_label())
@@ -1183,18 +1248,23 @@ for i in range(nl):
                      (0.1, W / 100.0, max(leg_top, 1) / 100.0))
     names.append(leg.get_actor_label())
 ps = float(ARGS["part_size"]); n = int(ARGS["parts"])
+lift = 5 + ps / 2 + 1  # bed half-thickness + half part + clearance, along the bed normal
+nx, ny, nz = -dz * dx / ch if ch else 0, -dz * dy / ch if ch else 0, ch
 items = []
 for i in range(n):
     t = (i + 0.5) / n * L * 0.9
     p = spawn_mesh("%s_Part_%02d" % (ARGS["label"], i), "cube",
-                   (s.x + dx * t, s.y + dy * t, s.z + dz * t + 5 + ps / 2 + 1), (-sl, yaw, 0), ps / 100.0)
+                   (s.x + dx * t + nx * lift, s.y + dy * t + ny * lift, s.z + dz * t + nz * lift),
+                   (-sl, yaw, 0), ps / 100.0)
     p.root_component.set_mobility(unreal.ComponentMobility.MOVABLE)
     p.static_mesh_component.set_simulate_physics(True)
     p.static_mesh_component.set_mass_override_in_kg("", float(ARGS["part_mass"]), True)
     items.append(p.get_actor_label())
 for x in names + items:
     find(x).set_folder_path(ARGS["label"])
-result = {"structure": names, "parts": items}
+result = {"structure": names, "parts": items, "high_end_z": round(s.z, 1),
+          "low_end_z": round(s.z + dz * L, 1), "horizontal_run": round(L * ch, 1),
+          "friction": fr, "parts_slide": math.tan(math.radians(sl)) > fr}
 """,
             label=label,
             start=start,
@@ -1205,6 +1275,7 @@ result = {"structure": names, "parts": items}
             part_size=part_size,
             part_mass=part_mass,
             slope_degrees=slope_degrees,
+            friction=friction,
             _undo="Create conveyor",
         )
 
@@ -1254,6 +1325,27 @@ result = {"bodies": len(names), "labels": names}
         where the ``track``ed actors ended up versus where they started (all physics
         bodies when ``track`` is empty). The editor level itself is not changed."""
         seconds = max(0.5, min(float(seconds), 120.0))
+        throttle_off = await _set_play_throttle_override(True)
+        try:
+            return await _simulate(seconds, track, stop_after, throttle_off)
+        finally:
+            if throttle_off:
+                await _set_play_throttle_override(False)
+
+    async def _set_play_throttle_override(disabled: bool) -> bool:
+        """Ask the plugin to stop background CPU throttling during play (older plugin
+        builds lack the command; the simulation then runs slower than real time)."""
+        try:
+            resp = await ctx.dispatcher.client.request(
+                "unreal_set_play_throttle_override", {"disabled": disabled}, retry=False
+            )
+        except (UnrealEngineMCPError, OSError):
+            return False
+        return bool(getattr(resp, "ok", False))
+
+    async def _simulate(
+        seconds: float, track: list[str] | None, stop_after: bool, throttle_off: bool
+    ) -> dict[str, Any]:
         before = await run_python(
             ctx,
             PRELUDE
@@ -1271,13 +1363,29 @@ result = {"tracked": names[:200], "start": start}
         if not before.get("success"):
             return before
         info = before["result"]["result"]
-        await asyncio.sleep(seconds)
+        # Wait for *simulated* time to reach ``seconds`` (wall-clock bound as a safety net).
+        sim_t = 0.0
+        deadline = asyncio.get_running_loop().time() + seconds * 10 + 30
+        await asyncio.sleep(min(seconds, 1.0))
+        while asyncio.get_running_loop().time() < deadline:
+            probe = await run_python(
+                ctx,
+                "gw = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_game_world()\n"
+                "result = unreal.GameplayStatics.get_time_seconds(gw) if gw else -1.0\n",
+            )
+            sim_t = (
+                float(probe.get("result", {}).get("result") or 0.0) if probe.get("success") else 0.0
+            )
+            if sim_t >= seconds or sim_t < 0:
+                break
+            await asyncio.sleep(min(0.5, max(0.1, seconds - sim_t)))
         after = await run_python(
             ctx,
             PRELUDE
             + _args(names=info["tracked"], stop=stop_after)
             + """
 gw = UES.get_game_world()
+sim_t = unreal.GameplayStatics.get_time_seconds(gw) if gw is not None else 0.0
 end = {}
 if gw is not None:
     for a in unreal.GameplayStatics.get_all_actors_of_class(gw, unreal.Actor):
@@ -1285,7 +1393,7 @@ if gw is not None:
             end[a.get_actor_label()] = loc_list(a)
 if ARGS["stop"]:
     LES.editor_request_end_play()
-result = {"end": end, "sim_world": gw is not None}
+result = {"end": end, "sim_world": gw is not None, "simulated_seconds": round(sim_t, 3)}
 """,
         )
         if not after.get("success"):
@@ -1312,6 +1420,8 @@ result = {"end": end, "sim_world": gw is not None}
         return ok(
             {
                 "seconds": seconds,
+                "simulated_seconds": after["result"]["result"]["simulated_seconds"],
+                "background_throttle_disabled": throttle_off,
                 "sim_world": after["result"]["result"]["sim_world"],
                 "actors": report,
                 "stopped": stopped,

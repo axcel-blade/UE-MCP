@@ -18,7 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
--
+- `unreal_create_game_mode`, `unreal_create_input_action`, `unreal_create_cinematic`, `unreal_create_lighting_cue` and `unreal_create_turntable` take `overwrite` to replace an existing asset instead of failing
+- `unreal_create_conveyor` takes `friction` (bed physical material, default 0.1) and reports `low_end_z`, `horizontal_run` and `parts_slide`
+- `unreal_run_simulation` waits for simulated time, reports `simulated_seconds`, and disables background CPU throttling for the run (new bridge command `unreal_set_play_throttle_override`)
 
 ### Fixed
 
@@ -36,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Asset import and editor Python could crash the editor (TaskGraph `RecursionGuard` assertion) because they ran inside a task-graph game-thread task; they now run from the core ticker
 - `unreal_capture_viewport` failed with "No active viewport" after a level load; it now falls back to the level viewport
 - `unreal_set_material_parameter` infers `vector` when colour values are given without `type`
+- `unreal_run_simulation` advanced physics only ~1/10 of the requested time when the editor was in the background (throttled to ~3 FPS with physics clamped per frame)
+- `unreal_create_conveyor` mixed belt length and horizontal run on slopes, placing parts past the bed and the low end underground; the low end is now validated to stay above ground
+- Re-running `unreal_create_variant_set` added duplicate sets ("Paint0"); a set with the same name is now replaced
+- Overwriting an input action left a stale null mapping in the reused mapping context; stale and duplicate mappings are now removed
+- `unreal_create_led_stage` and `unreal_create_display_wall` now group their actors in an Outliner folder named after `label`
 - `unreal_capture_viewport` could report success without ever writing a file when the editor was backgrounded; it now forces a viewport draw and returns `file_written`
 
 ## [1.0.4] - 2026-11-20

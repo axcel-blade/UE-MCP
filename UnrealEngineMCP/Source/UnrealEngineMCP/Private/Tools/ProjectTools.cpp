@@ -302,6 +302,35 @@ void FUnrealEngineMCPProjectTools::Register()
 		return Ok(Req, Result);
 	}), TEXT("Validate Blueprints."));
 
+	Reg.Register(TEXT("unreal_set_play_throttle_override"), FUnrealEngineMCPToolHandler::CreateLambda([](const FUnrealEngineMCPRequest& Req)
+	{
+		// A backgrounded editor drops to a few FPS and physics is clamped per frame
+		// (MaxPhysicsDeltaTime), so MCP-driven simulations would barely advance. While
+		// this override is on, CPU throttling is disabled for play/simulate sessions only.
+		const bool bDisable = !Req.Params.IsValid() || !Req.Params->HasField(TEXT("disabled"))
+			|| Req.Params->GetBoolField(TEXT("disabled"));
+		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJson([bDisable]()
+		{
+			static bool bOverride = false;
+			static bool bRegistered = false;
+			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+			if (!GEditor) { Obj->SetStringField(TEXT("error"), TEXT("No editor")); return Obj; }
+			if (!bRegistered)
+			{
+				GEditor->ShouldDisableCPUThrottlingDelegates.Add(UEditorEngine::FShouldDisableCPUThrottling::CreateLambda([]()
+				{
+					return bOverride && GEditor && GEditor->PlayWorld != nullptr;
+				}));
+				bRegistered = true;
+			}
+			bOverride = bDisable;
+			Obj->SetBoolField(TEXT("throttle_disabled_during_play"), bOverride);
+			return Obj;
+		});
+		if (Result->HasField(TEXT("error"))) return Fail(Req, TEXT("engine_error"), Result->GetStringField(TEXT("error")));
+		return Ok(Req, Result);
+	}), TEXT("Disable background CPU throttling during play/simulate sessions (used by unreal_run_simulation)."));
+
 	Reg.Register(TEXT("unreal_run_automation_test"), FUnrealEngineMCPToolHandler::CreateLambda([](const FUnrealEngineMCPRequest& Req)
 	{
 		return Fail(Req, TEXT("unsupported"), TEXT("Automation test runner wiring is not enabled in this build."));
