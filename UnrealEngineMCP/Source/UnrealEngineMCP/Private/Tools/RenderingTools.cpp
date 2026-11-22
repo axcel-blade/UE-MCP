@@ -60,9 +60,14 @@ void FUnrealEngineMCPRenderingTools::Register()
 			FString FullPath = FPaths::ConvertRelativePathToFull(Dir / Filename);
 
 			FScreenshotRequest::RequestScreenshot(FullPath, false, false);
+			// The request is only serviced on the next viewport draw. A backgrounded
+			// editor throttles redraws, so the file may never appear; draw now.
+			Viewport->Invalidate();
+			Viewport->Draw();
 			Obj->SetStringField(TEXT("path"), FullPath);
 			Obj->SetBoolField(TEXT("requested"), true);
-			Obj->SetStringField(TEXT("note"), TEXT("Screenshot requested asynchronously; file appears after next viewport draw."));
+			Obj->SetBoolField(TEXT("file_written"), IFileManager::Get().FileExists(*FullPath));
+			Obj->SetStringField(TEXT("note"), TEXT("If file_written is false, the file appears after the next viewport draw."));
 			return Obj;
 		});
 		if (Result->HasField(TEXT("error"))) return Fail(Req, TEXT("engine_error"), Result->GetStringField(TEXT("error")));
