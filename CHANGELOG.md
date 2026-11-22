@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-22
+
 ### Added
 
 - Editor Python execution through PythonScriptPlugin (`unreal_execute_python`, alias `unreal_execute_editor_python`) with Blender-MCP-style restricted / confirmation / trusted modes and a static AST safety check (no subprocess, file or asset deletion, network, quit, console commands or eval)
