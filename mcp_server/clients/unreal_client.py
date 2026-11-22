@@ -16,5 +16,12 @@ class UnrealClient:
     def connected(self) -> bool:
         return self._connections.connected
 
-    async def request(self, method: str, params: dict[str, Any] | None = None) -> BridgeResponse:
-        return await self._connections.client.request(method, params)
+    async def request(
+        self,
+        method: str,
+        params: dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
+        retry: bool = True,
+    ) -> BridgeResponse:
+        return await self._connections.client.request(method, params, timeout=timeout, retry=retry)

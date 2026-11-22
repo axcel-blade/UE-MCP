@@ -16,12 +16,27 @@
     "mode": "safe",
     "require_confirmation_for_destructive_actions": true,
     "allow_python_execution": false,
-    "allow_console_commands": false
+    "allow_console_commands": false,
+    "script_permission": "confirmation",
+    "safe_python_execution": true
   },
   "paths": {
     "project_directory": "",
     "screenshot_directory": "output/screenshots",
     "log_directory": "logs",
     "allowed_directories": []
+  },
+  "editor": {
+    "executable": "",
+    "project": "",
+    "startup_timeout": 300
+  },
+  "providers": {
+    "polyhaven_enabled": true,
+    "polypizza_enabled": true,
+    "polypizza_api_key": "",
+    "sketchfab_enabled": false,
+    "sketchfab_api_token": "",
+    "download_directory": ""
   }
 }

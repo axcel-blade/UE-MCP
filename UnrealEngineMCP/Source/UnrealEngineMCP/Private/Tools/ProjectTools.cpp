@@ -15,6 +15,7 @@
 #include "EditorAssetLibrary.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Blueprint.h"
+#include "IPythonScriptPlugin.h"
 
 namespace
 {
@@ -131,10 +132,36 @@ void FUnrealEngineMCPProjectTools::Register()
 		auto Result = FUnrealEngineMCPGameThreadDispatcher::RunJson([]()
 		{
 			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
-			const bool bOk = FEditorFileUtils::SaveDirtyPackages(false, true, true, false, false, false);
+			// SaveDirtyPackages() opens a modal "Save As" dialog for untitled (/Temp) maps,
+			// which blocks the game thread and hangs the bridge. Collect dirty packages
+			// ourselves, skip untitled ones, and save the rest without prompting.
+			TArray<UPackage*> Dirty;
+			FEditorFileUtils::GetDirtyContentPackages(Dirty);
+			FEditorFileUtils::GetDirtyWorldPackages(Dirty);
+			TArray<UPackage*> ToSave;
+			TArray<TSharedPtr<FJsonValue>> Skipped;
+			for (UPackage* Pkg : Dirty)
+			{
+				if (!Pkg) continue;
+				const FString Name = Pkg->GetName();
+				if (FPackageName::IsTempPackage(Name) || Name.StartsWith(TEXT("/Temp/")))
+				{
+					Skipped.Add(MakeShared<FJsonValueString>(Name));
+					continue;
+				}
+				ToSave.AddUnique(Pkg);
+			}
+			bool bOk = true;
+			if (ToSave.Num() > 0)
+			{
+				bOk = FEditorFileUtils::PromptForCheckoutAndSave(ToSave, false, false) == FEditorFileUtils::PR_Success;
+			}
 			Obj->SetBoolField(TEXT("saved"), bOk);
+			Obj->SetNumberField(TEXT("count"), ToSave.Num());
+			Obj->SetArrayField(TEXT("skipped_untitled"), Skipped);
 			return Obj;
 		});
+		if (Result->HasField(TEXT("error"))) return Fail(Req, TEXT("engine_error"), Result->GetStringField(TEXT("error")));
 		return Ok(Req, Result);
 	}), TEXT("Save dirty packages."));
 
@@ -157,7 +184,49 @@ void FUnrealEngineMCPProjectTools::Register()
 
 	Reg.Register(TEXT("unreal_execute_editor_python"), FUnrealEngineMCPToolHandler::CreateLambda([](const FUnrealEngineMCPRequest& Req)
 	{
-		return Fail(Req, TEXT("unsupported"), TEXT("Editor Python execution requires PythonScriptPlugin integration; not enabled in this build."));
+		// Runs a multi-statement Python script through PythonScriptPlugin on the game
+		// thread. Permission gating (security mode, script policy, AST safety checks)
+		// lives in the MCP server; the bridge is localhost-only and token-protected.
+		TSharedPtr<FJsonObject> Params = Req.Params;
+		FString Code;
+		if (!Params.IsValid() || !Params->TryGetStringField(TEXT("code"), Code) || Code.IsEmpty())
+		{
+			return Fail(Req, TEXT("invalid_params"), TEXT("code is required"));
+		}
+		double Timeout = 60.0;
+		Params->TryGetNumberField(TEXT("timeout"), Timeout);
+		Timeout = FMath::Clamp(Timeout, 1.0, 3600.0);
+		// Run from the core ticker, not a task-graph task: scripts routinely import
+		// assets or load maps, which pump the task graph and would otherwise crash.
+		auto Result = FUnrealEngineMCPGameThreadDispatcher::RunJsonOnTicker([Code]()
+		{
+			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+			IPythonScriptPlugin* Python = IPythonScriptPlugin::Get();
+			if (!Python || !Python->IsPythonAvailable())
+			{
+				Obj->SetStringField(TEXT("error"), TEXT("Python is not available: enable the Python Editor Script Plugin (PythonScriptPlugin) and restart the editor"));
+				return Obj;
+			}
+			FPythonCommandEx Cmd;
+			Cmd.Command = Code;
+			Cmd.ExecutionMode = EPythonCommandExecutionMode::ExecuteFile;
+			Cmd.FileExecutionScope = EPythonFileExecutionScope::Private;
+			const bool bOk = Python->ExecPythonCommandEx(Cmd);
+			TArray<TSharedPtr<FJsonValue>> Lines;
+			for (const FPythonLogOutputEntry& Entry : Cmd.LogOutput)
+			{
+				TSharedPtr<FJsonObject> L = MakeShared<FJsonObject>();
+				L->SetStringField(TEXT("type"), LexToString(Entry.Type));
+				L->SetStringField(TEXT("output"), Entry.Output);
+				Lines.Add(MakeShared<FJsonValueObject>(L));
+			}
+			Obj->SetBoolField(TEXT("executed"), bOk);
+			Obj->SetArrayField(TEXT("log"), Lines);
+			Obj->SetStringField(TEXT("command_result"), Cmd.CommandResult);
+			return Obj;
+		}, static_cast<float>(Timeout));
+		if (Result->HasField(TEXT("error"))) return Fail(Req, TEXT("engine_error"), Result->GetStringField(TEXT("error")));
+		return Ok(Req, Result);
 	}), TEXT("Execute Unreal Editor Python (advanced mode)."));
 
 	Reg.Register(TEXT("unreal_get_output_log"), FUnrealEngineMCPToolHandler::CreateLambda([](const FUnrealEngineMCPRequest& Req)
@@ -232,6 +301,35 @@ void FUnrealEngineMCPProjectTools::Register()
 		});
 		return Ok(Req, Result);
 	}), TEXT("Validate Blueprints."));
+
+	Reg.Register(TEXT("unreal_set_play_throttle_override"), FUnrealEngineMCPToolHandler::CreateLambda([](const FUnrealEngineMCPRequest& Req)
+	{
+		// A backgrounded editor drops to a few FPS and physics is clamped per frame
+		// (MaxPhysicsDeltaTime), so MCP-driven simulations would barely advance. While
+		// this override is on, CPU throttling is disabled for play/simulate sessions only.
+		const bool bDisable = !Req.Params.IsValid() || !Req.Params->HasField(TEXT("disabled"))
+			|| Req.Params->GetBoolField(TEXT("disabled"));
+		TSharedPtr<FJsonObject> Result = FUnrealEngineMCPGameThreadDispatcher::RunJson([bDisable]()
+		{
+			static bool bOverride = false;
+			static bool bRegistered = false;
+			TSharedPtr<FJsonObject> Obj = MakeShared<FJsonObject>();
+			if (!GEditor) { Obj->SetStringField(TEXT("error"), TEXT("No editor")); return Obj; }
+			if (!bRegistered)
+			{
+				GEditor->ShouldDisableCPUThrottlingDelegates.Add(UEditorEngine::FShouldDisableCPUThrottling::CreateLambda([]()
+				{
+					return bOverride && GEditor && GEditor->PlayWorld != nullptr;
+				}));
+				bRegistered = true;
+			}
+			bOverride = bDisable;
+			Obj->SetBoolField(TEXT("throttle_disabled_during_play"), bOverride);
+			return Obj;
+		});
+		if (Result->HasField(TEXT("error"))) return Fail(Req, TEXT("engine_error"), Result->GetStringField(TEXT("error")));
+		return Ok(Req, Result);
+	}), TEXT("Disable background CPU throttling during play/simulate sessions (used by unreal_run_simulation)."));
 
 	Reg.Register(TEXT("unreal_run_automation_test"), FUnrealEngineMCPToolHandler::CreateLambda([](const FUnrealEngineMCPRequest& Req)
 	{
