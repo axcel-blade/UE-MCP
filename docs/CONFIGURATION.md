@@ -13,7 +13,7 @@ Primary file: `config/config.json`
 | `UNREAL_ENGINE_MCP_SECURITY_MODE` | `safe` or `advanced` |
 | `UNREAL_ENGINE_MCP_LOG_LEVEL` | Logging level |
 | `UE_MCP_HOME` | Remote installer clone directory (default `~/UE-MCP`) |
-| `UE_MCP_BRANCH` | Remote installer git branch (default `develop`) |
+| `UE_MCP_BRANCH` | Remote installer git branch (default `main`) |
 
 Plugin settings are also available under **Edit → Project Settings → Plugins → Unreal MCP**.
 
