@@ -26,7 +26,7 @@ irm https://axcel-blade.github.io/UE-MCP/install.ps1 | iex
 curl -LsSf https://axcel-blade.github.io/UE-MCP/install.sh | sh
 ```
 
-This clones into `~/UE-MCP` (override with `UE_MCP_HOME`), checks out `develop` (override with `UE_MCP_BRANCH`), runs `uv sync`, and updates Cursor / Claude Desktop MCP config when those files already exist.
+This clones into `~/UE-MCP` (override with `UE_MCP_HOME`), checks out `main` (override with `UE_MCP_BRANCH`), runs `uv sync`, and updates Cursor / Claude Desktop MCP config when those files already exist.
 
 Then install the Editor plugin into your Unreal project (see below).
 
