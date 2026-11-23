@@ -87,6 +87,15 @@ Pack tools run vetted templates, so they work without `allow_python_execution`.
 Failed pack calls destroy the actors they spawned; asset creation is not undoable,
 so templates validate inputs before creating assets.
 
+## Production pack (unit-tested; not yet live-verified)
+
+`mcp_server/tools/production` adds pattern spawning, procedural structures, scene
+organisation, level management, PCG, terrain, AI assets, audio, Niagara placement,
+plugin management, C++ scaffolding, log reading and UBT builds. Unit tests check that
+every template is valid Python, permission gates apply, and file tools write/refuse
+correctly. **These tools have not been run against a live editor yet**; Unreal Python
+API names (notably Geometry Script and PCG) may need adjustment per engine version.
+
 ## Blockers
 
 - Unreal Engine installation path is environment-specific and not hardcoded.

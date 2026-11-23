@@ -26,6 +26,7 @@ def register_all_tools(mcp: FastMCP, ctx: AppContext) -> None:
     from mcp_server.tools.online_assets import tools as online_assets_tools
     from mcp_server.tools.physics import tools as physics_tools
     from mcp_server.tools.pipeline import tools as pipeline_tools
+    from mcp_server.tools.production import tools as production_tools
     from mcp_server.tools.project import tools as project_tools
     from mcp_server.tools.rendering import tools as rendering_tools
     from mcp_server.tools.scripting import tools as scripting_tools
@@ -58,3 +59,4 @@ def register_all_tools(mcp: FastMCP, ctx: AppContext) -> None:
     scripting_tools.register(mcp, ctx)
     industries_tools.register(mcp, ctx)
     online_assets_tools.register(mcp, ctx)
+    production_tools.register(mcp, ctx)

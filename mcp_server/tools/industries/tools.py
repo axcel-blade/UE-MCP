@@ -125,31 +125,35 @@ def _args(**kwargs: Any) -> str:
     return f"ARGS = json.loads({json.dumps(json.dumps(kwargs))})\n"
 
 
+def compose(body: str, label: str = "Unreal MCP", /, **kwargs: Any) -> str:
+    """Wrap a template body with the prelude, arguments, an undo transaction and
+    all-or-nothing actor cleanup. Shared by every template-based tool pack."""
+    indented = "\n".join("    " + line for line in body.strip("\n").splitlines())
+    # If the template fails, destroy every actor it spawned so a retry starts clean.
+    # Edits are one undo step on success. (Asset creation is not undoable; templates
+    # validate inputs before creating assets.)
+    return (
+        PRELUDE
+        + _args(**kwargs)
+        + f"_txn = unreal.ScopedEditorTransaction({label!r})\n"
+        + "try:\n"
+        + indented
+        + "\nexcept BaseException:\n"
+        + "    for _a in reversed(SPAWNED):\n"
+        + "        try:\n"
+        + "            EAS.destroy_actor(_a)\n"
+        + "        except Exception:\n"
+        + "            pass\n"
+        + "    raise\n"
+        + "finally:\n"
+        + "    del _txn\n"
+    )
+
+
 def register(mcp: FastMCP, ctx: AppContext) -> None:
     async def run(body: str, timeout: float | None = None, **kwargs: Any) -> dict[str, Any]:
         label = kwargs.pop("_undo", "Unreal MCP")
-        indented = "\n".join("    " + line for line in body.strip("\n").splitlines())
-        # All-or-nothing for actors: if the template fails, destroy every actor it
-        # spawned so a retry starts clean. Edits are one undo step on success.
-        # (Asset creation is not undoable; templates validate inputs before creating
-        # assets.)
-        code = (
-            PRELUDE
-            + _args(**kwargs)
-            + f"_txn = unreal.ScopedEditorTransaction({label!r})\n"
-            + "try:\n"
-            + indented
-            + "\nexcept BaseException:\n"
-            + "    for _a in reversed(SPAWNED):\n"
-            + "        try:\n"
-            + "            EAS.destroy_actor(_a)\n"
-            + "        except Exception:\n"
-            + "            pass\n"
-            + "    raise\n"
-            + "finally:\n"
-            + "    del _txn\n"
-        )
-        return await run_python(ctx, code, timeout=timeout)
+        return await run_python(ctx, compose(body, label, **kwargs), timeout=timeout)
 
     # =============================================================================
     # GAMES
