@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-22
+
 ### Added
 
 - Production pack (`mcp_server/tools/production`): pattern spawning, procedural structures, outliner organisation, level list/duplicate/delete, PCG volumes, Geometry Script terrain, AI assets (Blackboard/Behavior Tree/AIController), audio (SoundCue, attenuation, ambient sound), Niagara placement, `.uproject` plugin management, C++ class scaffolding, output log reader, and UnrealBuildTool builds with parsed diagnostics
