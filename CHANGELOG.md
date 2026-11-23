@@ -7,11 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.0] - 2026-11-22
+## [1.2.0] - 2026-11-23
 
 ### Added
 
 - Production pack (`mcp_server/tools/production`): pattern spawning, procedural structures, outliner organisation, level list/duplicate/delete, PCG volumes, Geometry Script terrain, AI assets (Blackboard/Behavior Tree/AIController), audio (SoundCue, attenuation, ambient sound), Niagara placement, `.uproject` plugin management, C++ class scaffolding, output log reader, and UnrealBuildTool builds with parsed diagnostics
+- Production pack tests (`tests/test_production_tools.py`)
+
+### Changed
+
+- Industry template wrapper extracted to `industries.tools.compose` for reuse by other packs
+- `unreal_delete_level` and `unreal_set_plugin_enabled` are destructive (need `confirmed=true`); `unreal_build_project` is restricted
+- Project website restyled (`site/`)
+
+## [1.1.0] - 2026-11-22
+
+### Added
+
 - Editor Python execution through PythonScriptPlugin (`unreal_execute_python`, alias `unreal_execute_editor_python`) with Blender-MCP-style restricted / confirmation / trusted modes and a static AST safety check (no subprocess, file or asset deletion, network, quit, console commands or eval)
 - `unreal_look` returns viewport screenshots as MCP images (lit, unlit, wireframe, detail lighting, lighting only, multi-angle); `unreal_capture_viewport` gains `max_size` (inline base64 PNG) and `view_mode`
 - `unreal_lookup_api`, `unreal_get_guide` (unreal_python, games, film, live_events, automotive, simulation), `unreal_search_scene`, `unreal_open_editor`, `unreal_close_editor`
@@ -21,8 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Industry template wrapper extracted to `industries.tools.compose` for reuse by other packs
-- `unreal_delete_level` and `unreal_set_plugin_enabled` are destructive (need `confirmed=true`); `unreal_build_project` is restricted
 - `unreal_create_game_mode`, `unreal_create_input_action`, `unreal_create_cinematic`, `unreal_create_lighting_cue` and `unreal_create_turntable` take `overwrite` to replace an existing asset instead of failing
 - `unreal_create_conveyor` takes `friction` (bed physical material, default 0.1) and reports `low_end_z`, `horizontal_run` and `parts_slide`
 - `unreal_run_simulation` waits for simulated time, reports `simulated_seconds`, and disables background CPU throttling for the run (new bridge command `unreal_set_play_throttle_override`)
