@@ -3,84 +3,159 @@ import Layout from "../layouts/Layout.astro";
 import "../styles/home.css";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-const installPs1 = `${base}/install.ps1`;
-const installSh = `${base}/install.sh`;
+const repo = "https://github.com/axcel-blade/UE-MCP";
+const docs = `${repo}/blob/develop/docs`;
 
 const winCmd = `irm https://axcel-blade.github.io/UE-MCP/install.ps1 | iex`;
 const unixCmd = `curl -LsSf https://axcel-blade.github.io/UE-MCP/install.sh | sh`;
+const pluginCmd = `uv run python scripts/install_plugin.py --project "D:\\Path\\To\\YourProject.uproject"`;
 ---
 
 <Layout>
-  <main class="page">
-    <p class="eyebrow">Unreal Engine · MCP</p>
-    <h1>UnrealEngineMCP</h1>
+  <section class="hero">
+    <h1>Build in Unreal by describing it.</h1>
     <p class="lede">
-      Connect Claude, Cursor, VS Code, and other MCP clients to Unreal Engine 5.
-      One command installs uv, clones the repo, and syncs dependencies. Then
-      install the Editor plugin into your <code>.uproject</code>.
+      An MCP server and Unreal Editor plugin that let Claude, Cursor, VS Code and
+      other AI assistants drive a live Unreal Engine 5 editor. It turns requests
+      for levels, Blueprints, materials, lighting and gameplay into real assets and
+      actors, then inspects and refines them.
     </p>
+    <div class="cta">
+      <a class="btn primary" href="#install">Install</a>
+      <a class="btn" href={`${docs}/MCP_TOOLS.md`}>Browse 280 tools</a>
+      <a class="btn" href={repo}>View on GitHub</a>
+    </div>
+  </section>
 
-    <section class="panel">
-      <h2>Windows (PowerShell)</h2>
-      <div class="command">
-        <pre><code>{winCmd}</code></pre>
-        <button class="copy" type="button" data-copy={winCmd}>Copy</button>
+  <section class="section" id="install" aria-labelledby="install-h">
+    <h2 id="install-h">Install</h2>
+    <div class="install">
+      <div class="card">
+        <h3>Windows</h3>
+        <p>PowerShell. Installs uv, clones the repo and syncs the MCP server's dependencies.</p>
+        <div class="cmd">
+          <code>{winCmd}</code>
+          <button class="copy" type="button" data-copy={winCmd}>Copy</button>
+        </div>
       </div>
-      <p style="margin: 0.75rem 0 0; color: var(--muted); font-size: 0.95rem;">
-        Script URL: <a href={installPs1}>{installPs1}</a>
-      </p>
-    </section>
-
-    <section class="panel">
-      <h2>macOS / Linux</h2>
-      <div class="command">
-        <pre><code>{unixCmd}</code></pre>
-        <button class="copy" type="button" data-copy={unixCmd}>Copy</button>
+      <div class="card">
+        <h3>macOS / Linux</h3>
+        <p>Terminal. Installs uv and the Python MCP server. Editor plugin builds are Windows-first.</p>
+        <div class="cmd">
+          <code>{unixCmd}</code>
+          <button class="copy" type="button" data-copy={unixCmd}>Copy</button>
+        </div>
       </div>
-      <p style="margin: 0.75rem 0 0; color: var(--muted); font-size: 0.95rem;">
-        Script URL: <a href={installSh}>{installSh}</a>
-      </p>
-      <p style="margin: 0.5rem 0 0; color: var(--muted); font-size: 0.9rem;">
-        Editor plugin compile is Windows-primary; Unix installs the Python MCP server.
-      </p>
-    </section>
-
-    <section class="panel">
-      <h2>After install</h2>
+    </div>
+    <p class="note">
+      Scripts: <a href={`${base}/install.ps1`}>install.ps1</a>,
+      <a href={`${base}/install.sh`}>install.sh</a>.
+      <a href={`${docs}/INSTALLATION.md`}>Details</a>.
+    </p>
+    <div class="card" style="margin-top: 14px;">
+      <h3>After install</h3>
       <ol class="steps">
         <li>
-          From the clone:
-          <code>uv run python scripts/install_plugin.py --project "D:\Path\To\YourProject.uproject"</code>
+          Add the editor plugin to your project from the clone:
+          <div class="cmd">
+            <code>{pluginCmd}</code>
+            <button class="copy" type="button" data-copy={pluginCmd}>Copy</button>
+          </div>
         </li>
-        <li>
-          Open the Unreal project → enable <strong>UnrealEngineMCP</strong> (+ Editor
-          Scripting Utilities) → compile / restart
-        </li>
-        <li>Confirm Output Log: bridge listening on <code>127.0.0.1:55557</code></li>
-        <li>Fully quit and reopen your MCP client</li>
+        <li>Open the project → enable <strong>UnrealEngineMCP</strong> and <strong>Editor Scripting Utilities</strong> → compile / restart.</li>
+        <li>Check the Output Log for the bridge listening on <code>127.0.0.1:55557</code>.</li>
+        <li>Fully quit and reopen your MCP client.</li>
       </ol>
-    </section>
+    </div>
+  </section>
 
-    <nav class="links">
-      <a href="https://github.com/axcel-blade/UE-MCP">GitHub</a>
-      <a
-        href="https://github.com/axcel-blade/UE-MCP/blob/develop/docs/INSTALLATION.md"
-        >Docs</a
-      >
-      <a href="https://github.com/axcel-blade/UE-MCP/blob/develop/SECURITY.md"
-        >Security</a
-      >
-    </nav>
-  </main>
+  <section class="section" aria-labelledby="what-h">
+    <h2 id="what-h">What it does</h2>
+    <div class="features">
+      <div class="card">
+        <div class="stat">280</div>
+        <p>
+          MCP tools: actors, levels, Blueprints, assets, materials, lighting, meshes,
+          animation, Niagara, UMG widgets, Sequencer, rendering, physics and gameplay.
+        </p>
+      </div>
+      <div class="card">
+        <div class="stat">Production</div>
+        <p>
+          Pattern placement, modular structures, PCG volumes, terrain meshes, AI
+          Behavior Trees, audio, C++ class scaffolding and UnrealBuildTool builds.
+        </p>
+      </div>
+      <div class="card">
+        <div class="stat">Python</div>
+        <p>
+          Anything a tool doesn't cover runs as editor Python, plus workflows, pipeline
+          and testing tools and online asset search and import.
+        </p>
+      </div>
+      <div class="card">
+        <div class="stat">Safe</div>
+        <p>
+          Permission gates on every tool, explicit confirmation for destructive actions,
+          one undo step per template, and results verified in the editor before success.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="how-h">
+    <h2 id="how-h">How it works</h2>
+    <ol class="flow">
+      <li>You describe what you want to your assistant.</li>
+      <li>The Python MCP server picks the tools and sends commands over a local TCP bridge.</li>
+      <li>The C++ editor plugin carries them out in your open Unreal project.</li>
+      <li>The assistant reads back the result and refines.</li>
+    </ol>
+    <p class="note">
+      Details: <a href={`${docs}/ARCHITECTURE.md`}>architecture</a>,
+      <a href={`${docs}/CONFIGURATION.md`}>configuration</a>,
+      <a href={`${docs}/TROUBLESHOOTING.md`}>troubleshooting</a>,
+      <a href={`${repo}/blob/develop/SECURITY.md`}>security</a>.
+    </p>
+  </section>
 </Layout>
 
 <script>
+  async function copyText(text: string): Promise<boolean> {
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {}
+    }
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+
   document.querySelectorAll<HTMLButtonElement>("button.copy").forEach((button) => {
     button.addEventListener("click", async () => {
-      const value = button.dataset.copy ?? "";
-      await navigator.clipboard.writeText(value);
-      button.dataset.copied = "true";
-      button.textContent = "Copied";
+      const ok = await copyText(button.dataset.copy ?? "");
+      button.dataset.copied = ok ? "true" : "false";
+      button.textContent = ok ? "Copied" : "Press Ctrl+C";
+      if (!ok) {
+        const code = button.parentElement?.querySelector("code");
+        if (code) {
+          const range = document.createRange();
+          range.selectNodeContents(code);
+          window.getSelection()?.removeAllRanges();
+          window.getSelection()?.addRange(range);
+        }
+      }
       window.setTimeout(() => {
         button.dataset.copied = "false";
         button.textContent = "Copy";

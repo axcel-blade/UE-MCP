@@ -85,12 +85,15 @@ DESTRUCTIVE_TOOLS = {
     "unreal_remove_component",
     "unreal_remove_blueprint_variable",
     "unreal_remove_widget",
+    "unreal_delete_level",
+    "unreal_set_plugin_enabled",
 }
 
 RESTRICTED_TOOLS = {
     "unreal_execute_editor_python",
     "unreal_execute_console_command",
     "unreal_run_build",
+    "unreal_build_project",
 }
 
 
